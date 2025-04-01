@@ -1,0 +1,318 @@
+# SPDX-FileCopyrightText: 2025 Deutsche Telekom AG
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "The next release version"
+        type: string
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  lint-go:
+    name: Lint Go code
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run linter
+        uses: golangci/golangci-lint-action@v7
+
+  lint-reuse:
+    name: Check REUSE compliance
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: REUSE Compliance Check
+        uses: fsfe/reuse-action@v5
+
+  check-changes:
+    name: Check which files changed
+    runs-on: self-hosted
+    # Required permissions
+    permissions:
+      pull-requests: read
+      contents: read
+    # Set job outputs to values from filter step
+    outputs:
+      deps: ${{ steps.filter.outputs.deps }}
+    steps:
+      - name: Checkout project
+        if: github.event_name == 'push' # Checkout not necessary for PRs
+        uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            deps:
+              - 'go.sum'
+
+
+  #  ort:
+  #    name: ORT scan
+  #    runs-on: self-hosted
+  #    needs:
+  #      - check-changes
+  #    # Only run if deps have changed
+  #    #if: ${{ needs.check-changes.outputs.deps == 'true' }}
+  #    if: false # skip until it's  performant
+  #    steps:
+  #      - name: Use HTTPS for Git cloning
+  #        run: git config --global url.https://github.com/.insteadOf ssh://git@github.com/
+  #      - name: Checkout project
+  #        uses: actions/checkout@v3
+  #      - name: Prepare ORT config
+  #        # This allows us to customize the default ORT config available at
+  #        # https://github.com/oss-review-toolkit/ort-config
+  #        # using our own config file stored in .github/ort/config.yml
+  #        # Note that this is the global config, not the repo specific one
+  #        run: |
+  #          # Move into default config dir
+  #          export ORT_CONFIG_DIR=$HOME/.ort/config
+  #          mkdir -p ${ORT_CONFIG_DIR}
+  #          cd ${ORT_CONFIG_DIR}
+  #          # Checkout default config repo
+  #          git init -q
+  #          git remote add origin https://github.com/oss-review-toolkit/ort-config.git
+  #          git fetch -q --depth 1 origin main
+  #          git checkout -q FETCH_HEAD
+  #          # Copy custom config into config dir
+  #          cp ${GITHUB_WORKSPACE}/.github/ort/config.yml ${ORT_CONFIG_DIR}
+  #      - name: Run GitHub Action for ORT
+  #        uses: oss-review-toolkit/ort-ci-github-action@v1
+  #        with:
+  #          fail-on: violations
+  #          run: >
+  #            cache-dependencies,
+  #            cache-scan-results,
+  #            labels,
+  #            analyzer,
+  #            scanner,
+  #            advisor,
+  #            evaluator,
+  #            reporter,
+  #            upload-results
+
+  build-go:
+    name: Build Go code
+    runs-on: self-hosted
+    outputs:
+      go-version: ${{ steps.setup-go.outputs.go-version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        id: setup-go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Restore Go cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/.go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+      - name: Download all Go modules
+        run: |
+          go mod download
+      - name: Build
+        run: go build ./cmd/api/main.go
+
+  govulncheck:
+    # this also scans dependencies
+    name: Check for vulnerabilities (govulncheck)
+    runs-on: self-hosted
+    needs:
+      - build-go
+    steps:
+      - id: govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+          go-version-input: '' # default is 'stable' which overrides the file input
+          go-version-file: go.mod
+          go-package: ./...
+
+  test-go-unit:
+    name: Run unit tests
+    runs-on: self-hosted
+    needs:
+      - build-go
+    permissions:
+      pull-requests: write
+      checks: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Restore Go cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/.go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+      - name: Run tests
+        run: make test-unit
+      - name: Generate HTML coverage report
+        run: go tool cover -html=cover.profile -o coverage.html
+      - name: Generate Cobertura coverage report
+        run: |
+          go install github.com/boumenot/gocover-cobertura@latest
+          gocover-cobertura < cover.profile > cobertura.xml
+      - id: upload-results
+        name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: |
+            ./cover.profile
+            ./coverage.html
+            ./cobertura.xml
+            ./junit.xml
+      - name: Publish test report
+        uses: mikepenz/action-junit-report@v5
+        if: always() && github.event_name == 'pull_request'
+        with:
+          report_paths: './junit.xml'
+          check_name: Test Report
+          comment: true
+          include_passed: true
+      - name: Prepare coverage comment
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        if: always() && github.event_name == 'pull_request'
+        with:
+          filename: ./cobertura.xml
+          badge: true
+          fail_below_min: true
+          format: markdown
+          indicators: true
+          output: both
+          thresholds: '60 80'
+      - name: Append coverage comment
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          sudo chown $(whoami) code-coverage-results.md
+          printf "\nDownload the latest HTML coverage report [here](${{ steps.upload-results.outputs.artifact-url }})." >> code-coverage-results.md
+      - name: Add Coverage PR Comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: always() && github.event_name == 'pull_request'
+        with:
+          recreate: true
+          path: code-coverage-results.md
+
+  build-push-image:
+    name: Build & push image to MTR
+    runs-on: self-hosted
+    if: ${{ github.event.inputs.release_version != '' }}
+    needs:
+      - build-go
+      - test-go-unit
+    outputs:
+      image-digest: ${{ steps.build-push.outputs.digest }}
+      image-tag: ${{ steps.build-push.outputs.image-digest }}
+    steps:
+      - name: Inject slug vars
+        uses: rlespinasse/github-slug-action@v5
+
+      - name: Determine tag
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "This workflow was triggered by workflow_dispatch."
+            export TAG=${{ github.event.inputs.release_version }}
+          else
+            if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+              echo "This workflow was triggered by a tag push ${GITHUB_REF}"
+              export TAG=$(echo ${GITHUB_REF} | sed 's|^refs/tags/v||')
+            else
+              if [[ "${GITHUB_REF_POINT_SLUG}" == "main" ]]; then
+                export TAG="latest"
+              else
+                export TAG=${GITHUB_REF_POINT_SLUG}-${GITHUB_RUN_ID}
+              fi
+            fi
+          fi
+          echo "Image tag will be: ${TAG}"
+          echo "image-tag=${TAG}" >> "${GITHUB_OUTPUT}"
+
+      - name: Login to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.REGISTRY_HOST }}
+          username: ${{ secrets.REGISTRY_AUTH_USER }}
+          password: ${{ secrets.REGISTRY_AUTH_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        id: build-push
+        uses: docker/build-push-action@v6
+        with:
+          file: Dockerfile.multi-stage.dockerfile
+          build-args: GO_VERSION=${{ needs.build-go.outputs.go-version }}
+          push: true
+          tags: ${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_REPO }}/issuer-service:${{ steps.tag.outputs.image-tag }}
+          cache-from: type=registry,ref=${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_REPO }}/issuer-service:${{ steps.tag.outputs.image-tag }}
+          cache-to: type=inline
+
+  scan-image:
+    name: Scan image
+    runs-on: self-hosted
+    needs:
+      - build-push-image
+    steps:
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.28.0
+        env:
+          TRIVY_USERNAME: ${{ secrets.REGISTRY_AUTH_USER }}
+          TRIVY_PASSWORD: ${{ secrets.REGISTRY_AUTH_TOKEN }}
+        with:
+          image-ref: '${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_REPO }}/issuer-service@${{ needs.build-push-image.outputs.image-digest }}'
+          exit-code: '1'
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+  #  sign-image:
+  #    name: Sign image
+  #    runs-on: self-hosted
+  #    needs:
+  #      - build-push-image
+  #      - scan-image
+  #      - govulncheck
+  #    steps:
+  #      - name: Install cosign
+  #        uses: sigstore/cosign-installer@v3.8.1
+  #      - name: Sign image
+  #        run: |
+  #          export COSIGN_KEY=${{ secrets.COSIGN_KEY }}
+  #          cosign sign \
+  #            --key "env://COSIGN_KEY" \
+  #            -a "repo=${{ github.repository }}" \
+  #            -a "commit-sha=${{ github.sha }}" \
+  #            --tlog-upload=false \
+  #            -y \
+  #            "${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_REPO }}@${{ needs.docker-build.outputs.image-digest }}"

@@ -1,0 +1,77 @@
+# SPDX-FileCopyrightText: 2025 Deutsche Telekom AG
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      do_release:
+        description: "Do you want to trigger the release?"
+        required: true
+        default: "no"
+        type: choice
+        options:
+          - "yes"
+          - "no"
+
+jobs:
+  release:
+    if: ${{ github.ref == 'refs/heads/main' && github.event.inputs.do_release == 'yes' }}
+    runs-on: self-hosted
+    outputs:
+      new-release-published: ${{ steps.dry-run.outputs.new-release-published }}
+      new-release-version: ${{ steps.dry-run.outputs.new-release-version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: 'true'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: |
+          npm install @semantic-release/commit-analyzer
+          npm install semantic-release-export-data
+          npm install @semantic-release/release-notes-generator
+          npm install @semantic-release/changelog
+          npm install @semantic-release/github
+          npm install @semantic-release/git
+
+      - name: Run Dry Run Semantic Release
+        id: dry-run
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release --dry-run
+
+      - name: Run Semantic Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
+
+  trigger-ci:
+    runs-on: self-hosted
+    needs: release
+    if: needs.release.outputs.new-release-published == 'true'
+    steps:
+      - name: Trigger CI Workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'ci.yml',
+              ref: context.ref,
+              inputs: {
+                release_version: '${{ needs.release.outputs.new-release-version }}'
+              }
+            });
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
