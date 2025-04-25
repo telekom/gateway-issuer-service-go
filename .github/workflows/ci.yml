@@ -226,7 +226,7 @@ jobs:
   build-push-image:
     name: Build & push image to MTR
     runs-on: self-hosted
-    if: ${{ github.event.inputs.release_version != '' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || (github.event_name == 'workflow_dispatch' && github.event.inputs.release_version != '') }}
     needs:
       - build-go
       - test-go-unit
