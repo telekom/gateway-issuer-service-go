@@ -278,6 +278,7 @@ jobs:
           tags: ${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_REPO }}/issuer-service:${{ steps.tag.outputs.image-tag }}
           cache-from: type=registry,ref=${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_REPO }}/issuer-service:${{ steps.tag.outputs.image-tag }}
           cache-to: type=inline
+          platforms: linux/amd64,linux/arm64
 
   scan-image:
     name: Scan image
