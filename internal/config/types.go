@@ -22,7 +22,7 @@ type Config struct {
 
 //nolint:golines // ignore this linter error
 type ServerConfig struct {
-	Port     int    `env:"SERVER_PORT,expand" envDefault:"8080"`      // Port the server should listen on
+	Port     int    `env:"SERVER_PORT,expand" envDefault:"8081"`      // Port the server should listen on
 	BasePath string `env:"API_BASE_PATH,expand" envDefault:"/api/v1"` // Base path of the API
 }
 
