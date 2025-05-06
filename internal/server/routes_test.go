@@ -249,19 +249,23 @@ func TestJwksRoute(t *testing.T) {
 		description  string
 		route        string
 		expectedCode int
-		expectedJwks []jwks.Jwk
+		expectedJwks server.JwksResponse
 	}{
 		{
 			description:  "Test /certs/default endpoint #1",
 			route:        config.GetConfig().ServerConfig.BasePath + "/certs/default",
 			expectedCode: 200,
-			expectedJwks: []jwks.Jwk{jwkNext, jwkActive, jwkPrev},
+			expectedJwks: server.JwksResponse{
+				Keys: []*jwks.Jwk{&jwkNext, &jwkActive, &jwkPrev},
+			},
 		},
 		{
 			description:  "Test .../openid-connect/certs endpoint #2",
 			route:        "/auth/realms/default/protocol/openid-connect/certs",
 			expectedCode: 200,
-			expectedJwks: []jwks.Jwk{jwkNext, jwkActive, jwkPrev},
+			expectedJwks: server.JwksResponse{
+				Keys: []*jwks.Jwk{&jwkNext, &jwkActive, &jwkPrev},
+			},
 		},
 	}
 
@@ -292,13 +296,12 @@ func TestJwksRoute(t *testing.T) {
 				t.Fatalf("Failed to read response body: %v", err)
 			}
 
-			var jwkSet []jwks.Jwk
+			var jwkSet server.JwksResponse
 			err = json.Unmarshal(bodyBytes, &jwkSet)
 			if err != nil {
-				fmt.Println("Error unmarshaling JSON:", err)
-				return
+				t.Fatalf("Test failed due to error: %v", err)
 			}
-
+			fmt.Printf("XXXXXXXXXXXXX")
 			assert.Equalf(t, tt.expectedJwks, jwkSet, "Jwks response does not match expected value")
 		})
 	}
@@ -360,8 +363,7 @@ func TestDefaultRealmRoute(t *testing.T) {
 			var defaultR jwks.DefaultRealm
 			err = json.Unmarshal(bodyBytes, &defaultR)
 			if err != nil {
-				fmt.Println("Error unmarshaling JSON:", err)
-				return
+				t.Fatalf("Test failed due to error: %v", err)
 			}
 
 			assert.Equalf(t, tt.expectedDefaultRealm, defaultR, "DefaultRealm response does not match expected value")

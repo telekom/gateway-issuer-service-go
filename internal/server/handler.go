@@ -23,6 +23,10 @@ type Handler struct {
 	jwksProvider jwks.Provider
 }
 
+type JwksResponse struct {
+	Keys []*jwks.Jwk `json:"keys"`
+}
+
 func NewHandler(jwksProvider jwks.Provider) *Handler {
 	return &Handler{
 		jwksProvider: jwksProvider,
@@ -62,8 +66,11 @@ func (h *Handler) JwksHandler(c *fiber.Ctx) error {
 	log.Debug().Msgf("Request received on certs endpoint for realm %s", realm)
 
 	info := h.jwksProvider.GetJwks()
+	response := &JwksResponse{
+		Keys: info,
+	}
 
-	return c.Status(fiber.StatusOK).JSON(info)
+	return c.Status(fiber.StatusOK).JSON(response)
 }
 
 func (h *Handler) IssuerHandler(c *fiber.Ctx) error {
