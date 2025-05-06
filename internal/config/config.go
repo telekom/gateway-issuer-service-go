@@ -5,7 +5,10 @@
 package config
 
 import (
+	"strings"
+
 	"github.com/caarlos0/env/v11"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -27,4 +30,12 @@ func initializeConfig() {
 	}
 
 	log.Info().Msgf("config parsed from env: %+v", current)
+
+	level, err := zerolog.ParseLevel(strings.ToLower(current.LogLevel))
+	if err != nil {
+		log.Warn().Msgf("invalid log level '%s', defaulting to 'info'", current.LogLevel)
+		level = zerolog.InfoLevel
+	}
+	zerolog.SetGlobalLevel(level)
+	log.Info().Msgf("log level set to '%s'", level.String())
 }
