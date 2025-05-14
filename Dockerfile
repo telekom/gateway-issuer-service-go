@@ -9,7 +9,12 @@ WORKDIR /app
 
 COPY . .
 
-RUN go build -ldflags="-X 'internal/version.Version=${VERSION}' -X 'internal/version.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" -o issuer-service cmd/api/main.go
+# Set build arguments for cross-compilation
+ARG GOOS
+ARG GOARCH
+ARG VERSION=dev
+
+RUN GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="-X 'internal/version.Version=${VERSION}' -X 'internal/version.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" -o issuer-service cmd/api/main.go
 
 RUN addgroup -g 1000 -S app
 RUN adduser -u 1000 -D -H -S -G app app

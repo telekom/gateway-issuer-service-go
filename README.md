@@ -55,7 +55,7 @@ This will build the image and tag it as `issuer-service:latest`.
 Alternatively, you can use the multi-stage Docker build to build the image. To build the image, run:
 
 ```bash
-  docker build -t issuer-service -f Dockerfile.multi-stage.dockerfile.multi-stage .
+  docker build -t issuer-service -f Dockerfile.multi-stage .
 ```
 
 ## Configuration

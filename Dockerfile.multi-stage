@@ -9,8 +9,12 @@ WORKDIR /app
 
 COPY . .
 
+# Set build arguments for cross-compilation
+ARG GOOS
+ARG GOARCH
 ARG VERSION=dev
-RUN go build -ldflags="-X 'internal/version.Version=${VERSION}' -X 'internal/version.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" -o issuer-service cmd/api/main.go
+
+RUN GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="-X 'internal/version.Version=${VERSION}' -X 'internal/version.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" -o issuer-service cmd/api/main.go
 
 FROM alpine:latest
 WORKDIR /app

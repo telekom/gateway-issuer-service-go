@@ -272,7 +272,7 @@ jobs:
         id: build-push
         uses: docker/build-push-action@v6
         with:
-          file: Dockerfile.multi-stage.dockerfile
+          file: Dockerfile.multi-stage
           build-args: GO_VERSION=${{ needs.build-go.outputs.go-version }}
           push: true
           tags: ${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_REPO }}/issuer-service:${{ steps.tag.outputs.image-tag }}
