@@ -4,7 +4,7 @@ go 1.23.8
 
 require (
 	github.com/caarlos0/env/v11 v11.3.1
-	github.com/gofiber/fiber/v2 v2.52.6
+	github.com/gofiber/fiber/v2 v2.52.8
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.10.0
 )
