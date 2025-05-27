@@ -2,22 +2,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-ARG GO_VERSION=1.23.8
-FROM golang:${GO_VERSION}-alpine
+FROM alpine:latest
 
 WORKDIR /app
 
-COPY . .
-
-# Set build arguments for cross-compilation
-ARG GOOS
-ARG GOARCH
-ARG VERSION=dev
-
-RUN GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="-X 'internal/version.Version=${VERSION}' -X 'internal/version.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" -o issuer-service cmd/api/main.go
-
 RUN addgroup -g 1000 -S app
 RUN adduser -u 1000 -D -H -S -G app app
+
+COPY --chown=app:app issuer-service /app/issuer-service
 
 USER 1000:1000
 

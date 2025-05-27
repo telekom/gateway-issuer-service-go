@@ -5,7 +5,7 @@
 ARG GO_VERSION=1.23.8
 FROM golang:${GO_VERSION}-alpine AS builder
 
-WORKDIR /app
+WORKDIR /build
 
 COPY . .
 
@@ -18,7 +18,7 @@ RUN GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="-X 'internal/version.Versio
 
 FROM alpine:latest
 WORKDIR /app
-COPY --from=builder /app/issuer-service /app/issuer-service
+COPY --from=builder /build/issuer-service /app/issuer-service
 
 RUN addgroup -g 1000 -S app
 RUN adduser -u 1000 -D -H -S -G app app

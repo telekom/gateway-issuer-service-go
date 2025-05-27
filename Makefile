@@ -74,7 +74,7 @@ lint-config: golangci-lint ## Verify golangci-lint linter configuration
 
 .PHONY: build
 build: ## Build issuer-service binary.
-	go build ./cmd/api/main.go
+	go build -o issuer-service ./cmd/api/main.go
 
 .PHONY: run
 run:  ## Run a controller from your host.

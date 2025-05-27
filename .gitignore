@@ -16,6 +16,7 @@ package-lock.json
 
 issuer-service-go
 main
+issuer-service
 
 .secrets
 

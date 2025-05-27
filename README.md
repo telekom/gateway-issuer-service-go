@@ -37,7 +37,7 @@ folder. For more information visit https://reuse.software/.
 Assuming you have already installed [Go](https://go.dev/), simply run the following to build the executable:
 
 ```bash
-  go build ./...
+  make build
 ```
 
 ### Docker build
