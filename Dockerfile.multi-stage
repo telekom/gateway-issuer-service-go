@@ -7,7 +7,15 @@ FROM golang:${GO_VERSION}-alpine AS builder
 
 WORKDIR /build
 
-COPY . .
+COPY go.mod go.mod
+COPY go.sum go.sum
+# cache deps before building and copying source so that we don't need to re-download as much
+# and so that source changes don't invalidate our downloaded layer
+RUN go mod download
+
+# Copy the go source
+COPY cmd/api/main.go cmd/api/main.go
+COPY internal/ internal/
 
 # Set build arguments for cross-compilation
 ARG GOOS
