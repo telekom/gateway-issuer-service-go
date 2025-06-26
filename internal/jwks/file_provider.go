@@ -221,10 +221,10 @@ func startScheduler(fp *FileProvider) {
 }
 
 func executeTask(fp *FileProvider) {
-	log.Info().Msg("updating the certificates from mounted files...")
+	log.Debug().Msg("updating the certificates from mounted files...")
 	err := updateCerts(fp)
 	if err != nil {
 		log.Error().Msgf("failed to update certificate: %v", err)
 	}
-	log.Info().Msg("certificates were updated successfully")
+	log.Debug().Msg("certificates were updated successfully")
 }
