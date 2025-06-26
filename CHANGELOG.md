@@ -1,3 +1,11 @@
+## [2.1.1](https://github.com/telekom/gateway-issuer-service-go/compare/v2.1.0...v2.1.1) (2025-06-26)
+
+
+### Bug Fixes
+
+* go fix version bump to 1.23.10 ([5f1e78b](https://github.com/telekom/gateway-issuer-service-go/commit/5f1e78b34a27eead215749b2218aa7eb33e8074a))
+* switched cert update task logs to debug level ([864b192](https://github.com/telekom/gateway-issuer-service-go/commit/864b1920358ad38c25c9597c06e9c5a1c07319ae))
+
 # [2.1.0](https://github.com/telekom/gateway-issuer-service-go/compare/v2.0.1...v2.1.0) (2025-05-28)
 
 
