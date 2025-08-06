@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"issuer-service-go/internal/config"
-	"issuer-service-go/internal/util"
 	"os"
 	"sync"
 	"time"
@@ -169,18 +168,18 @@ func generateCertInfo(config *config.JwksFileConfig, certType config.Type) (*Jwk
 		return nil, fmt.Errorf("failed to parse certificate: %w", err)
 	}
 
-	exponent, err := util.E(cert)
+	exponent, err := E(cert)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create JWK: %w", err)
 	}
 
-	modulus, err := util.N(cert)
+	modulus, err := N(cert)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create JWK: %w", err)
 	}
 
 	// Extract and format the public key
-	publicKeyString, err := util.PublicKey(cert)
+	publicKeyString, err := PublicKey(cert)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read Public Key: %w", err)
 	}
@@ -188,13 +187,13 @@ func generateCertInfo(config *config.JwksFileConfig, certType config.Type) (*Jwk
 	jwk := Jwk{
 		Kid:       string(kidByteArray),
 		Kty:       "RSA",
-		Alg:       util.Alg(),
+		Alg:       Alg(),
 		Use:       "sig",
 		E:         exponent,
 		N:         modulus,
-		X5c:       util.X5c(cert),
-		X5t:       util.X5t(cert),
-		X5tS256:   util.X5tS256(cert),
+		X5c:       X5c(cert),
+		X5t:       X5t(cert),
+		X5tS256:   X5tS256(cert),
 		PublicKey: publicKeyString,
 	}
 

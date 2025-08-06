@@ -1,7 +1,7 @@
 <!--
 SPDX-FileCopyrightText: 2025 Deutsche Telekom AG
 
-SPDX-License-Identifier: CC0-1.0    
+SPDX-License-Identifier: CC0-1.0
 -->
 
 # Issuer-service
@@ -10,9 +10,9 @@ SPDX-License-Identifier: CC0-1.0
 
 Enables customers to validate Oauth2 tokens issued by related Gateway. Following endpoints are available:
 
-* Token endpoint
-* Discovery endpoint
-* Certificate endpoint
+- Token endpoint
+- Discovery endpoint
+- Certificate endpoint
 
 ![Overview](./docs/images/overview.svg)
 
@@ -63,7 +63,7 @@ Alternatively, you can use the multi-stage Docker build to build the image. To b
 These are the environment variables that can be set to configure the application:
 
 | Environment Variable | Description                            | Default Value         |
-|----------------------|----------------------------------------|-----------------------|
+| -------------------- | -------------------------------------- | --------------------- |
 | LOG_LEVEL            | Severity of the logging                | info                  |
 | ISSUER_URL           | URL of the issuer                      | http://localhost:8080 |
 | SERVER_PORT          | Port the application server listens on | 8080                  |
@@ -72,7 +72,7 @@ These are the environment variables that can be set to configure the application
 addtionally, you can/have to set the following JWKS environment variables:
 
 | Environment Variable | Description                                                                                           | Default Value |
-|----------------------|-------------------------------------------------------------------------------------------------------|---------------|
+| -------------------- | ----------------------------------------------------------------------------------------------------- | ------------- |
 | CERT_UPDATE_INTERVAL | Interval in seconds in which the certificates should be updated. If 0 scheduler is deactivated at all | 10            |
 | CERT_MOUNT_PATH      | Path to the directory where the certificates are mounted                                              |               |
 | CERT_FILE_NEXT       | Name of the certificate file that should be used in the next rotation                                 | next-tls.crt  |
@@ -84,9 +84,17 @@ addtionally, you can/have to set the following JWKS environment variables:
 
 ## Run
 
-To be able to run the application, at least the environment variable CERT_MOUNT_PATH should be set correctly. The
-defines directory should contain
-the 6 files defines in the table above. The files should be mounted to the container.
+To be able to run the application, at least the environment variable CERT_MOUNT_PATH should be set correctly. The defined directory should contain the 6 files defines in the table above. The files should be mounted to the container.
+
+You can set the environment variables in a .env file that will be read during startup or as environment variables.
+
+Example .env file:
+
+```
+CERT_MOUNT_PATH=internal/jwks/file_provider_testdata
+```
+
+### Endpoints
 
 ```bash
 
@@ -165,3 +173,4 @@ As a result, you should get a response as follows:
 
 ## Authorization endpoint
 Not implemented on Issuer Service.
+```

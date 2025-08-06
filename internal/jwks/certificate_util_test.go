@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package util_test
+package jwks_test
 
 import (
 	"crypto/x509"
 	"encoding/pem"
-	"issuer-service-go/internal/util"
+	"issuer-service-go/internal/jwks"
 	"os"
 	"testing"
 
@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	testPath = "./certificate_testdata"
+	testPath = "./certificate_util_testdata"
 )
 
 func loadCertificate(t *testing.T, path string) *x509.Certificate {
@@ -53,7 +53,7 @@ func TestAlg(t *testing.T) {
 
 	for _, test := range tests {
 		// when
-		alg := util.Alg()
+		alg := jwks.Alg()
 
 		// then
 		assert.Equalf(t, test.expectedAlg, alg, test.description)
@@ -82,7 +82,7 @@ func TestX5c(t *testing.T) {
 		}
 
 		// when
-		x5c := util.X5c(cert)
+		x5c := jwks.X5c(cert)
 
 		// then
 		assert.Equalf(t, []string{string(x5cVerifier)}, x5c, test.description)
@@ -107,7 +107,7 @@ func TestX5t(t *testing.T) {
 		cert := loadCertificate(t, test.certPath)
 
 		// when
-		x5t := util.X5t(cert)
+		x5t := jwks.X5t(cert)
 
 		// then
 		assert.Equalf(t, test.x5t, x5t, test.description)
@@ -132,7 +132,7 @@ func TestX5tS256(t *testing.T) {
 		cert := loadCertificate(t, test.certPath)
 
 		// when
-		x5tS256 := util.X5tS256(cert)
+		x5tS256 := jwks.X5tS256(cert)
 
 		// then
 		assert.Equalf(t, test.x5tS256, x5tS256, test.description)
@@ -157,7 +157,7 @@ func TestN(t *testing.T) {
 		cert := loadCertificate(t, test.certPath)
 
 		// when
-		modulus, _ := util.N(cert)
+		modulus, _ := jwks.N(cert)
 
 		// then
 		assert.Equalf(t, test.modulus, modulus, test.description)
@@ -182,7 +182,7 @@ func TestE(t *testing.T) {
 		cert := loadCertificate(t, test.certPath)
 
 		// when
-		exponent, _ := util.E(cert)
+		exponent, _ := jwks.E(cert)
 
 		// then
 		assert.Equalf(t, test.exponent, exponent, test.description)
@@ -207,7 +207,7 @@ func TestPublicKey(t *testing.T) {
 		cert := loadCertificate(t, test.certPath)
 
 		// when
-		exponent, _ := util.PublicKey(cert)
+		exponent, _ := jwks.PublicKey(cert)
 
 		// then
 		assert.Equalf(t, test.publicKey, exponent, test.description)
