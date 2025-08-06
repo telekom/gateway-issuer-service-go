@@ -19,6 +19,7 @@ main
 issuer-service
 
 .secrets
+.env
 
 package.json
 

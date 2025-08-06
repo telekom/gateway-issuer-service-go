@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/caarlos0/env/v11"
+	"github.com/joho/godotenv"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -24,6 +25,12 @@ func GetConfig() *Config {
 }
 
 func initializeConfig() {
+	// Load .env file first (if present)
+	if err := godotenv.Load(); err != nil {
+		log.Info().Msg(`No env file found or failed to load env file.
+This is OK, config will be read from environment variables.`)
+	}
+
 	current = &Config{}
 	if err := env.Parse(current); err != nil {
 		log.Fatal().Msgf("failed to parse config: %v", err)

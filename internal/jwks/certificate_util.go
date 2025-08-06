@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package util
+package jwks
 
 //nolint:gosec // we have to provide 'x5t' in JWK so we are backwards-compatible
 import (
