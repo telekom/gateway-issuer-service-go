@@ -16,6 +16,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -134,19 +135,26 @@ func TestAuthRoute(t *testing.T) {
 }
 
 func TestDiscoveryRoute(t *testing.T) {
+	issuerUrl := "localhost:8080"
+
 	tests := []struct {
 		description      string
 		route            string
+		headers          map[string]string
 		expectedCode     int
 		expectedResponse server.Discovery
+		expectedError    fiber.Error
 	}{
 		{
 			description:  "Test /discovery/default endpoint #1",
 			route:        config.GetConfig().ServerConfig.BasePath + "/discovery/default",
+			headers:      map[string]string{"X-Forwarded-Host": issuerUrl},
 			expectedCode: 200,
-			expectedResponse: server.Discovery{IssuerURL: config.GetConfig().IssuerURL + "/auth/realms/default",
-				JwksURL:                          config.GetConfig().IssuerURL + "/auth/realms/default/protocol/openid-connect/certs",
-				AuthorizationEndpointURL:         config.GetConfig().IssuerURL + "/auth/realms/default/protocol/openid-connect/auth",
+
+			expectedResponse: server.Discovery{
+				IssuerURL:                        "https://" + issuerUrl + "/auth/realms/default",
+				JwksURL:                          "https://" + issuerUrl + "/auth/realms/default/protocol/openid-connect/certs",
+				AuthorizationEndpointURL:         "https://" + issuerUrl + "/auth/realms/default/protocol/openid-connect/auth",
 				ResponseTypesSupported:           []string{"none"},
 				SubjectTypesSupported:            []string{"public"},
 				IDTokenSigningAlgValuesSupported: []string{"RS256"}},
@@ -154,10 +162,12 @@ func TestDiscoveryRoute(t *testing.T) {
 		{
 			description:  "Test /discovery/other-realm endpoint #2",
 			route:        config.GetConfig().ServerConfig.BasePath + "/discovery/other-realm",
+			headers:      map[string]string{"X-Forwarded-Host": issuerUrl},
 			expectedCode: 200,
-			expectedResponse: server.Discovery{IssuerURL: config.GetConfig().IssuerURL + "/auth/realms/other-realm",
-				JwksURL:                          config.GetConfig().IssuerURL + "/auth/realms/other-realm/protocol/openid-connect/certs",
-				AuthorizationEndpointURL:         config.GetConfig().IssuerURL + "/auth/realms/other-realm/protocol/openid-connect/auth",
+			expectedResponse: server.Discovery{
+				IssuerURL:                        "https://" + issuerUrl + "/auth/realms/other-realm",
+				JwksURL:                          "https://" + issuerUrl + "/auth/realms/other-realm/protocol/openid-connect/certs",
+				AuthorizationEndpointURL:         "https://" + issuerUrl + "/auth/realms/other-realm/protocol/openid-connect/auth",
 				ResponseTypesSupported:           []string{"none"},
 				SubjectTypesSupported:            []string{"public"},
 				IDTokenSigningAlgValuesSupported: []string{"RS256"}},
@@ -165,10 +175,12 @@ func TestDiscoveryRoute(t *testing.T) {
 		{
 			description:  "Test /discovery/default endpoint #3",
 			route:        "/auth/realms/default/.well-known/openid-configuration",
+			headers:      map[string]string{"X-Forwarded-Host": issuerUrl},
 			expectedCode: 200,
-			expectedResponse: server.Discovery{IssuerURL: config.GetConfig().IssuerURL + "/auth/realms/default",
-				JwksURL:                          config.GetConfig().IssuerURL + "/auth/realms/default/protocol/openid-connect/certs",
-				AuthorizationEndpointURL:         config.GetConfig().IssuerURL + "/auth/realms/default/protocol/openid-connect/auth",
+			expectedResponse: server.Discovery{
+				IssuerURL:                        "https://" + issuerUrl + "/auth/realms/default",
+				JwksURL:                          "https://" + issuerUrl + "/auth/realms/default/protocol/openid-connect/certs",
+				AuthorizationEndpointURL:         "https://" + issuerUrl + "/auth/realms/default/protocol/openid-connect/auth",
 				ResponseTypesSupported:           []string{"none"},
 				SubjectTypesSupported:            []string{"public"},
 				IDTokenSigningAlgValuesSupported: []string{"RS256"}},
@@ -176,13 +188,35 @@ func TestDiscoveryRoute(t *testing.T) {
 		{
 			description:  "Test /discovery/other-realm endpoint #4",
 			route:        "/auth/realms/other-realm/.well-known/openid-configuration",
+			headers:      map[string]string{"X-Forwarded-Host": issuerUrl},
 			expectedCode: 200,
-			expectedResponse: server.Discovery{IssuerURL: config.GetConfig().IssuerURL + "/auth/realms/other-realm",
-				JwksURL:                          config.GetConfig().IssuerURL + "/auth/realms/other-realm/protocol/openid-connect/certs",
-				AuthorizationEndpointURL:         config.GetConfig().IssuerURL + "/auth/realms/other-realm/protocol/openid-connect/auth",
+			expectedResponse: server.Discovery{
+				IssuerURL:                        "https://" + issuerUrl + "/auth/realms/other-realm",
+				JwksURL:                          "https://" + issuerUrl + "/auth/realms/other-realm/protocol/openid-connect/certs",
+				AuthorizationEndpointURL:         "https://" + issuerUrl + "/auth/realms/other-realm/protocol/openid-connect/auth",
 				ResponseTypesSupported:           []string{"none"},
 				SubjectTypesSupported:            []string{"public"},
 				IDTokenSigningAlgValuesSupported: []string{"RS256"}},
+		},
+		{
+			description:  "Test /discovery/default endpoint with no X-Forwarded-Host header #5",
+			route:        config.GetConfig().ServerConfig.BasePath + "/discovery/default",
+			headers:      map[string]string{},
+			expectedCode: 400,
+			expectedError: fiber.Error{
+				Message: "X-Forwarded-Host header must be set in the request",
+				Code:    400,
+			},
+		},
+		{
+			description:  "Test /discovery/default endpoint with no X-Forwarded-Host header value #6",
+			route:        config.GetConfig().ServerConfig.BasePath + "/discovery/default",
+			headers:      map[string]string{"X-Forwarded-Host": ""},
+			expectedCode: 400,
+			expectedError: fiber.Error{
+				Message: "X-Forwarded-Host header must be set in the request",
+				Code:    400,
+			},
 		},
 	}
 
@@ -193,6 +227,7 @@ func TestDiscoveryRoute(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, tt.route, nil)
+			req.Header.Set("X-Forwarded-Host", tt.headers["X-Forwarded-Host"])
 			resp, _ := srv.Test(req, 1)
 			assert.Equalf(t, tt.expectedCode, resp.StatusCode, tt.description)
 

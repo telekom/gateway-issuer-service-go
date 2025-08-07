@@ -12,12 +12,9 @@ import (
 type Config struct {
 	LogLevel string `env:"LOG_LEVEL,expand" envDefault:"info"` // Log level of the application
 
-	//nolint:golines // ignore this linter error
-	GracefulShutdownTimeout time.Duration `env:"GRACEFUL_SHUTDOWN_TIMEOUT,expand" envDefault:"5s"`     // Timeout in seconds for graceful shutdown
-	IssuerURL               string        `env:"ISSUER_URL,expand" envDefault:"http://localhost:8080"` // URL of the issuer that should be used in the JWKS endpoint
-
-	ServerConfig ServerConfig
-	JwksConfig   JwksFileConfig
+	GracefulShutdownTimeout time.Duration `env:"GRACEFUL_SHUTDOWN_TIMEOUT,expand" envDefault:"5s"` // Timeout in seconds for graceful shutdown
+	ServerConfig            ServerConfig
+	JwksConfig              JwksFileConfig
 }
 
 //nolint:golines // ignore this linter error
