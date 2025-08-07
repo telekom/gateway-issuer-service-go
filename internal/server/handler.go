@@ -6,7 +6,6 @@ package server
 
 import (
 	"fmt"
-	"issuer-service-go/internal/config"
 	"issuer-service-go/internal/jwks"
 
 	"github.com/gofiber/fiber/v2"
@@ -58,7 +57,18 @@ func (h *Handler) DiscoveryHandler(c *fiber.Ctx) error {
 	log.Debug().Msg("Request received on discovery endpoint")
 	realm := c.Params("realm")
 
-	return c.Status(fiber.StatusOK).JSON(NewDiscoveryInfo(config.GetConfig().IssuerURL, realm))
+	log.Debug().Msgf("Request with following headers: %+v", c.GetReqHeaders())
+	host := c.Get("X-Forwarded-Host")
+	if host == "" {
+		log.Error().Msg("X-Forwarded-Host header must be set in the request")
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Error{
+			Code:    fiber.StatusBadRequest,
+			Message: "X-Forwarded-Host header must be set in the request",
+		})
+	}
+	issuerURL := "https://" + host
+
+	return c.Status(fiber.StatusOK).JSON(NewDiscoveryInfo(issuerURL, realm))
 }
 
 func (h *Handler) JwksHandler(c *fiber.Ctx) error {
