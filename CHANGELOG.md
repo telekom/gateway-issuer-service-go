@@ -1,3 +1,11 @@
+# [2.2.0](https://github.com/telekom/gateway-issuer-service-go/compare/v2.1.1...v2.2.0) (2025-08-08)
+
+
+### Features
+
+* **DHEI-18162:** read ISSUER_URL from Kong request header ([412474f](https://github.com/telekom/gateway-issuer-service-go/commit/412474f851b082582462685969e44c0176c0cae4))
+* read config from .env file ([8245c9a](https://github.com/telekom/gateway-issuer-service-go/commit/8245c9ab829ccfd66c22361e4aebb6b882f66235))
+
 ## [2.1.1](https://github.com/telekom/gateway-issuer-service-go/compare/v2.1.0...v2.1.1) (2025-06-26)
 
 
