@@ -140,6 +140,7 @@ func TestDiscoveryRoute(t *testing.T) {
 	tests := []struct {
 		description      string
 		route            string
+		pathPrefix       string
 		headers          map[string]string
 		expectedCode     int
 		expectedResponse server.Discovery
@@ -218,6 +219,20 @@ func TestDiscoveryRoute(t *testing.T) {
 				Code:    400,
 			},
 		},
+		{
+			description:  "Test /discovery/default endpoint for spacegate #7",
+			route:        "/auth/realms/default/.well-known/openid-configuration",
+			pathPrefix:   "/spacegate",
+			headers:      map[string]string{"X-Forwarded-Host": issuerUrl},
+			expectedCode: 200,
+			expectedResponse: server.Discovery{
+				IssuerURL:                        "https://" + issuerUrl + "/spacegate/auth/realms/default",
+				JwksURL:                          "https://" + issuerUrl + "/spacegate/auth/realms/default/protocol/openid-connect/certs",
+				AuthorizationEndpointURL:         "https://" + issuerUrl + "/spacegate/auth/realms/default/protocol/openid-connect/auth",
+				ResponseTypesSupported:           []string{"none"},
+				SubjectTypesSupported:            []string{"public"},
+				IDTokenSigningAlgValuesSupported: []string{"RS256"}},
+		},
 	}
 
 	srv := server.New()
@@ -226,6 +241,8 @@ func TestDiscoveryRoute(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
+			config.GetConfig().PathPrefix = tt.pathPrefix
+
 			req := httptest.NewRequest(http.MethodGet, tt.route, nil)
 			req.Header.Set("X-Forwarded-Host", tt.headers["X-Forwarded-Host"])
 			resp, _ := srv.Test(req, 1)

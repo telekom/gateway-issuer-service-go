@@ -6,6 +6,7 @@ package server
 
 import (
 	"fmt"
+	"issuer-service-go/internal/config"
 	"issuer-service-go/internal/jwks"
 
 	"github.com/gofiber/fiber/v2"
@@ -66,7 +67,7 @@ func (h *Handler) DiscoveryHandler(c *fiber.Ctx) error {
 			Message: "X-Forwarded-Host header must be set in the request",
 		})
 	}
-	issuerURL := "https://" + host
+	issuerURL := "https://" + host + config.GetConfig().PathPrefix
 
 	return c.Status(fiber.StatusOK).JSON(NewDiscoveryInfo(issuerURL, realm))
 }
