@@ -13,8 +13,10 @@ type Config struct {
 	LogLevel string `env:"LOG_LEVEL,expand" envDefault:"info"` // Log level of the application
 
 	GracefulShutdownTimeout time.Duration `env:"GRACEFUL_SHUTDOWN_TIMEOUT,expand" envDefault:"5s"` // Timeout in seconds for graceful shutdown
-	ServerConfig            ServerConfig
-	JwksConfig              JwksFileConfig
+	//nolint:golines // ignore this linter error
+	PathPrefix   string `env:"PATH_PREFIX,expand" envDefault:""` // prefixed to DiscoveryInfo URLs returned by issuer-service (e.g. /spacegate)
+	ServerConfig ServerConfig
+	JwksConfig   JwksFileConfig
 }
 
 //nolint:golines // ignore this linter error
