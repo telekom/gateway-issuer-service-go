@@ -42,12 +42,19 @@ type Discovery struct {
 	IDTokenSigningAlgValuesSupported []string `json:"id_token_signing_alg_values_supported"`
 }
 
-//nolint:golines // ignore this linter error
 func NewDiscoveryInfo(issuerURL string, realm string) Discovery {
 	return Discovery{
-		IssuerURL:                        fmt.Sprintf("%s/auth/realms/%s", issuerURL, realm),
-		JwksURL:                          fmt.Sprintf("%s/auth/realms/%s/protocol/openid-connect/certs", issuerURL, realm),
-		AuthorizationEndpointURL:         fmt.Sprintf("%s/auth/realms/%s/protocol/openid-connect/auth", issuerURL, realm),
+		IssuerURL: fmt.Sprintf("%s/auth/realms/%s", issuerURL, realm),
+		JwksURL: fmt.Sprintf(
+			"%s/auth/realms/%s/protocol/openid-connect/certs",
+			issuerURL,
+			realm,
+		),
+		AuthorizationEndpointURL: fmt.Sprintf(
+			"%s/auth/realms/%s/protocol/openid-connect/auth",
+			issuerURL,
+			realm,
+		),
 		ResponseTypesSupported:           []string{"none"},
 		SubjectTypesSupported:            []string{"public"},
 		IDTokenSigningAlgValuesSupported: []string{"RS256"},

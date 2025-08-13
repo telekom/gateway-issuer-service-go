@@ -141,7 +141,6 @@ func TestNewFileProvider(t *testing.T) {
 	}
 }
 
-//nolint:golines // ignore this linter error
 func TestGetJwks(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -188,7 +187,14 @@ func TestGetJwks(t *testing.T) {
 			assert.Truef(t, jwksProvider.IsSchedulerRunning(), "expected scheduler to be running, but it is not")
 
 			jwKeySet := jwksProvider.GetJwks()
-			assert.Lenf(t, jwKeySet, tt.certsCnt, "expected JWKS to has length %d, but got %d", tt.certsCnt, len(jwKeySet))
+			assert.Lenf(
+				t,
+				jwKeySet,
+				tt.certsCnt,
+				"expected JWKS to has length %d, but got %d",
+				tt.certsCnt,
+				len(jwKeySet),
+			)
 		})
 	}
 }
