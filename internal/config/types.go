@@ -13,28 +13,25 @@ type Config struct {
 	LogLevel string `env:"LOG_LEVEL,expand" envDefault:"info"` // Log level of the application
 
 	GracefulShutdownTimeout time.Duration `env:"GRACEFUL_SHUTDOWN_TIMEOUT,expand" envDefault:"5s"` // Timeout in seconds for graceful shutdown
-	//nolint:golines // ignore this linter error
-	PathPrefix   string `env:"PATH_PREFIX,expand" envDefault:""` // prefixed to DiscoveryInfo URLs returned by issuer-service (e.g. /spacegate)
-	ServerConfig ServerConfig
-	JwksConfig   JwksFileConfig
+	PathPrefix              string        `env:"PATH_PREFIX,expand"               envDefault:""`   // Prefixed to DiscoveryInfo URLs returned by issuer-service (e.g. /spacegate)
+	ServerConfig            ServerConfig
+	JwksConfig              JwksFileConfig
 }
 
-//nolint:golines // ignore this linter error
 type ServerConfig struct {
-	Port     int    `env:"SERVER_PORT,expand" envDefault:"8081"`      // Port the server should listen on
+	Port     int    `env:"SERVER_PORT,expand"   envDefault:"8081"`    // Port the server should listen on
 	BasePath string `env:"API_BASE_PATH,expand" envDefault:"/api/v1"` // Base path of the API
 }
 
-//nolint:golines // ignore this linter error
 type JwksFileConfig struct {
-	UpdateInterval     int    `env:"CERT_UPDATE_INTERVAL,expand" envDefault:"10"`     // Interval in seconds in which the certificates should be updated. If 0 scheduler is deactivated at all
-	MountedPath        string `env:"CERT_MOUNT_PATH,expand,required"`                 // Path to the directory where the certificates are mounted
-	CertFileNameNext   string `env:"CERT_FILE_NEXT,expand" envDefault:"next-tls.crt"` // Name of the certificate file that should be used in the next rotation
-	KidFileNameNext    string `env:"KID_FILE_NEXT,expand" envDefault:"next-tls.kid"`  // Name of the key ID file that should be used in the next rotation
-	CertFileNameActive string `env:"CERT_FILE_ACTIVE,expand" envDefault:"tls.crt"`    // Name of the certificate file that should be used currently
-	KidFileNameActive  string `env:"KID_FILE_ACTIVE,expand" envDefault:"tls.kid"`     // Name of the key ID file that should be used currently
-	CertFileNamePrev   string `env:"CERT_FILE_PREV,expand" envDefault:"prev-tls.crt"` // Name of the certificate file that should be used to verify the signature of JWTs that were signed with a key that is not the current one
-	KidFileNamePrev    string `env:"KID_FILE_PREV,expand" envDefault:"prev-tls.kid"`  // Name of the key ID file that should be used to verify the signature of JWTs that were signed with a key that is not the current one
+	UpdateInterval     int    `env:"CERT_UPDATE_INTERVAL,expand"     envDefault:"10"`           // Interval in seconds in which the certificates should be updated. If 0 scheduler is deactivated at all
+	MountedPath        string `env:"CERT_MOUNT_PATH,expand,required"`                           // Path to the directory where the certificates are mounted
+	CertFileNameNext   string `env:"CERT_FILE_NEXT,expand"           envDefault:"next-tls.crt"` // Name of the certificate file that should be used in the next rotation
+	KidFileNameNext    string `env:"KID_FILE_NEXT,expand"            envDefault:"next-tls.kid"` // Name of the key ID file that should be used in the next rotation
+	CertFileNameActive string `env:"CERT_FILE_ACTIVE,expand"         envDefault:"tls.crt"`      // Name of the certificate file that should be used currently
+	KidFileNameActive  string `env:"KID_FILE_ACTIVE,expand"          envDefault:"tls.kid"`      // Name of the key ID file that should be used currently
+	CertFileNamePrev   string `env:"CERT_FILE_PREV,expand"           envDefault:"prev-tls.crt"` // Name of the certificate file that should be used to verify the signature of JWTs that were signed with a key that is not the current one
+	KidFileNamePrev    string `env:"KID_FILE_PREV,expand"            envDefault:"prev-tls.kid"` // Name of the key ID file that should be used to verify the signature of JWTs that were signed with a key that is not the current one
 }
 
 type Type int
