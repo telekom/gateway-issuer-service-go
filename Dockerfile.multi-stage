@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-ARG GO_VERSION=1.23.8
+ARG GO_VERSION=1.23.12
 FROM golang:${GO_VERSION}-alpine AS builder
 
 WORKDIR /build
