@@ -1,5 +1,9 @@
-## [2.2.1](https://github.com/telekom/gateway-issuer-service-go/compare/v2.2.0...v2.2.1) (2025-08-13)
+# Changelog
 
+> [!WARNING]
+> This changelog is an archive. Future changes are documented in the projects [GitHub releases](https://github.com/telekom/gateway-issuer-service-go/releases).
+
+## [2.2.1](https://github.com/telekom/gateway-issuer-service-go/compare/v2.2.0...v2.2.1) (2025-08-13)
 
 ### Bug Fixes
 
@@ -8,14 +12,12 @@
 
 # [2.2.0](https://github.com/telekom/gateway-issuer-service-go/compare/v2.1.1...v2.2.0) (2025-08-08)
 
-
 ### Features
 
 * **DHEI-18162:** read ISSUER_URL from Kong request header ([412474f](https://github.com/telekom/gateway-issuer-service-go/commit/412474f851b082582462685969e44c0176c0cae4))
 * read config from .env file ([8245c9a](https://github.com/telekom/gateway-issuer-service-go/commit/8245c9ab829ccfd66c22361e4aebb6b882f66235))
 
 ## [2.1.1](https://github.com/telekom/gateway-issuer-service-go/compare/v2.1.0...v2.1.1) (2025-06-26)
-
 
 ### Bug Fixes
 
@@ -24,18 +26,15 @@
 
 # [2.1.0](https://github.com/telekom/gateway-issuer-service-go/compare/v2.0.1...v2.1.0) (2025-05-28)
 
-
 ### Bug Fixes
 
 * update gofiber version ([c0fdca6](https://github.com/telekom/gateway-issuer-service-go/commit/c0fdca6c0febed85f46e4ee76524c150a70f5863))
-
 
 ### Features
 
 * docker build improvements ([de3dd63](https://github.com/telekom/gateway-issuer-service-go/commit/de3dd637c858352fdb62b0f949e28890bcfe7565))
 
 ## [2.0.1](https://github.com/telekom/gateway-issuer-service-go/compare/v2.0.0...v2.0.1) (2025-05-06)
-
 
 ### Bug Fixes
 
