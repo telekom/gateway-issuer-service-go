@@ -39,6 +39,7 @@ jobs:
           tag_format: "${version}"
           extra_plugins: |
             semantic-release-export-data
+            conventional-changelog-conventionalcommits
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
