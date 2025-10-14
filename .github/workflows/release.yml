@@ -34,9 +34,6 @@ jobs:
         id: semantic-release
         uses: cycjimmy/semantic-release-action@v5
         with:
-          branches: |
-            ['main']
-          tag_format: "${version}"
           extra_plugins: |
             semantic-release-export-data
             conventional-changelog-conventionalcommits

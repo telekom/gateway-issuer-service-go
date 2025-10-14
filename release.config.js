@@ -1,6 +1,7 @@
 module.exports = {
     branches: ['main'],
     repositoryUrl: 'git@github.com:telekom/gateway-issuer-service-go.git',
+    tagFormat: '${version}',
     plugins: [
         [
           '@semantic-release/commit-analyzer',
