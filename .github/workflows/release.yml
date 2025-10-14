@@ -21,39 +21,24 @@ jobs:
     if: ${{ github.ref == 'refs/heads/main' && github.event.inputs.do_release == 'yes' }}
     runs-on: ubuntu-latest
     outputs:
-      new-release-published: ${{ steps.dry-run.outputs.new-release-published }}
-      new-release-version: ${{ steps.dry-run.outputs.new-release-version }}
+      new-release-published: ${{ steps.semantic-release.outputs.new-release-published }}
+      new-release-version: ${{ steps.semantic-release.outputs.new-release-version }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          fetch-tags: 'true'
+          fetch-tags: "true"
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Semantic Release
+        id: semantic-release
+        uses: cycjimmy/semantic-release-action@v5
         with:
-          node-version: 22
-
-      - name: Install dependencies
-        run: |
-          npm install @semantic-release/commit-analyzer
-          npm install semantic-release-export-data
-          npm install @semantic-release/release-notes-generator
-          npm install @semantic-release/changelog
-          npm install @semantic-release/github
-          npm install @semantic-release/git
-
-      - name: Run Dry Run Semantic Release
-        id: dry-run
+          extra_plugins: |
+            semantic-release-export-data
+            conventional-changelog-conventionalcommits
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release --dry-run
-
-      - name: Run Semantic Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release
 
   trigger-ci:
     runs-on: ubuntu-latest
