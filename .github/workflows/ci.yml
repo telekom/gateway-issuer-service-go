@@ -276,8 +276,8 @@ jobs:
       - name: Login to registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ secrets.REGISTRY_HOST }}
-          username: ${{ secrets.REGISTRY_AUTH_USER }}
+          registry: ${{ vars.REGISTRY_HOST }}
+          username: ${{ vars.REGISTRY_USER }}
           password: ${{ secrets.REGISTRY_AUTH_TOKEN }}
 
       - name: Set up Docker Buildx
@@ -290,12 +290,42 @@ jobs:
           file: Dockerfile.multi-stage
           build-args: GO_VERSION=${{ needs.build-go.outputs.go-version }}
           push: true
-          tags: ${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_REPO }}/issuer-service:${{ steps.tag.outputs.image-tag }}
-          cache-from: type=registry,ref=${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_REPO }}/issuer-service:${{ steps.tag.outputs.image-tag }}
+          tags: ${{ vars.REGISTRY_HOST }}${{ vars.REGISTRY_REPO }}:${{ steps.tag.outputs.image-tag }}
+          cache-from: type=registry,ref=${{ vars.REGISTRY_HOST }}${{ vars.REGISTRY_REPO }}:${{ steps.tag.outputs.image-tag }}
           cache-to: type=inline
           platforms: linux/amd64,linux/arm64
           provenance: false
           labels: ${{ steps.image-labels.outputs.labels }}
+      
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v4.0.0
+      - name: Sign image using cosign
+        id: cosign-sign
+        run: |
+          echo "TAGS=${TAGS}"
+          echo "DIGEST=${DIGEST}"
+          images=""
+          for tag in ${TAGS}; do
+            images+="${{ env.REGISTRY}}${{ env.REGISTRY_REPO }}:${tag}@${DIGEST} "
+          done
+          echo "images=${images}" >> $GITHUB_OUTPUT
+          cosign login -u ${{ env.REGISTRY_USER }} -p ${{ env.REGISTRY_PASSWORD }} ${{ env.REGISTRY }}
+          cosign sign --key env://COSIGN_PRIVATE_KEY --tlog-upload=false ${images}
+        env:
+          TAGS: ${{ steps.tag.outputs.image-tag }}
+          DIGEST: ${{ steps.build-push.outputs.digest }}
+          REGISTRY: ${{ vars.REGISTRY_HOST }}
+          REGISTRY_REPO: ${{ vars.REGISTRY_REPO }}
+          REGISTRY_USER: ${{ vars.REGISTRY_USER }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_AUTH_TOKEN }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      - name: Verify signature
+        run: |
+          cosign verify --key env://COSIGN_PUBLIC_KEY ${IMAGES}
+        env:
+          IMAGES: ${{ steps.cosign-sign.outputs.images }}
+          COSIGN_PUBLIC_KEY: ${{ secrets.COSIGN_PUBLIC_KEY }}
 
   scan-image:
     name: Scan image
@@ -306,31 +336,11 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.28.0
         env:
-          TRIVY_USERNAME: ${{ secrets.REGISTRY_AUTH_USER }}
+          TRIVY_USERNAME: ${{ vars.REGISTRY_USER }}
           TRIVY_PASSWORD: ${{ secrets.REGISTRY_AUTH_TOKEN }}
         with:
-          image-ref: '${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_REPO }}/issuer-service@${{ needs.build-push-image.outputs.image-digest }}'
+          image-ref: '${{ vars.REGISTRY_HOST }}${{ vars.REGISTRY_REPO }}@${{ needs.build-push-image.outputs.image-digest }}'
           exit-code: '1'
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
 
-  #  sign-image:
-  #    name: Sign image
-  #    runs-on: ubuntu-latest
-  #    needs:
-  #      - build-push-image
-  #      - scan-image
-  #      - govulncheck
-  #    steps:
-  #      - name: Install cosign
-  #        uses: sigstore/cosign-installer@v3.8.1
-  #      - name: Sign image
-  #        run: |
-  #          export COSIGN_KEY=${{ secrets.COSIGN_KEY }}
-  #          cosign sign \
-  #            --key "env://COSIGN_KEY" \
-  #            -a "repo=${{ github.repository }}" \
-  #            -a "commit-sha=${{ github.sha }}" \
-  #            --tlog-upload=false \
-  #            -y \
-  #            "${{ secrets.REGISTRY_HOST }}/${{ secrets.REGISTRY_REPO }}@${{ needs.docker-build.outputs.image-digest }}"
