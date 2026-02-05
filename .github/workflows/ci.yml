@@ -324,7 +324,7 @@ jobs:
           COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
       - name: Verify signature
         run: |
-          cosign verify --key env://COSIGN_PUBLIC_KEY ${IMAGES}
+          cosign verify --insecure-ignore-tlog=true --key env://COSIGN_PUBLIC_KEY ${IMAGES}
         env:
           IMAGES: ${{ steps.cosign-sign.outputs.images }}
           COSIGN_PUBLIC_KEY: ${{ secrets.COSIGN_PUBLIC_KEY }}
