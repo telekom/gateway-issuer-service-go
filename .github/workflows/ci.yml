@@ -254,7 +254,7 @@ jobs:
               if [[ "${GITHUB_REF_POINT_SLUG}" == "main" ]]; then
                 export TAG="latest"
               else
-                export TAG=${GITHUB_REF_POINT_SLUG}-${GITHUB_RUN_ID}
+                export TAG=${GITHUB_REF_POINT_SLUG}
               fi
             fi
           fi
