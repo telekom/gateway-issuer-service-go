@@ -49,9 +49,7 @@ jobs:
     needs: release
     if: needs.release.outputs.new-release-published == 'true'
     permissions:
-      contents: write
-      issues: write
-      pull-requests: write
+      actions: write
     steps:
       - name: Trigger CI Workflow
         uses: actions/github-script@v7
