@@ -158,7 +158,8 @@ func TestDiscoveryRoute(t *testing.T) {
 				AuthorizationEndpointURL:         "https://" + issuerUrl + "/auth/realms/default/protocol/openid-connect/auth",
 				ResponseTypesSupported:           []string{"none"},
 				SubjectTypesSupported:            []string{"public"},
-				IDTokenSigningAlgValuesSupported: []string{"RS256"}},
+				IDTokenSigningAlgValuesSupported: []string{"RS256"},
+			},
 		},
 		{
 			description:  "Test /discovery/other-realm endpoint #2",
@@ -171,7 +172,8 @@ func TestDiscoveryRoute(t *testing.T) {
 				AuthorizationEndpointURL:         "https://" + issuerUrl + "/auth/realms/other-realm/protocol/openid-connect/auth",
 				ResponseTypesSupported:           []string{"none"},
 				SubjectTypesSupported:            []string{"public"},
-				IDTokenSigningAlgValuesSupported: []string{"RS256"}},
+				IDTokenSigningAlgValuesSupported: []string{"RS256"},
+			},
 		},
 		{
 			description:  "Test /discovery/default endpoint #3",
@@ -184,7 +186,8 @@ func TestDiscoveryRoute(t *testing.T) {
 				AuthorizationEndpointURL:         "https://" + issuerUrl + "/auth/realms/default/protocol/openid-connect/auth",
 				ResponseTypesSupported:           []string{"none"},
 				SubjectTypesSupported:            []string{"public"},
-				IDTokenSigningAlgValuesSupported: []string{"RS256"}},
+				IDTokenSigningAlgValuesSupported: []string{"RS256"},
+			},
 		},
 		{
 			description:  "Test /discovery/other-realm endpoint #4",
@@ -197,7 +200,8 @@ func TestDiscoveryRoute(t *testing.T) {
 				AuthorizationEndpointURL:         "https://" + issuerUrl + "/auth/realms/other-realm/protocol/openid-connect/auth",
 				ResponseTypesSupported:           []string{"none"},
 				SubjectTypesSupported:            []string{"public"},
-				IDTokenSigningAlgValuesSupported: []string{"RS256"}},
+				IDTokenSigningAlgValuesSupported: []string{"RS256"},
+			},
 		},
 		{
 			description:  "Test /discovery/default endpoint with no X-Forwarded-Host header #5",
@@ -231,7 +235,8 @@ func TestDiscoveryRoute(t *testing.T) {
 				AuthorizationEndpointURL:         "https://" + issuerUrl + "/spacegate/auth/realms/default/protocol/openid-connect/auth",
 				ResponseTypesSupported:           []string{"none"},
 				SubjectTypesSupported:            []string{"public"},
-				IDTokenSigningAlgValuesSupported: []string{"RS256"}},
+				IDTokenSigningAlgValuesSupported: []string{"RS256"},
+			},
 		},
 	}
 
