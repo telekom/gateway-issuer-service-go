@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-ARG GO_VERSION=1.23.12
+ARG GO_VERSION=1.25.8
 FROM golang:${GO_VERSION}-alpine AS builder
 
 WORKDIR /build
@@ -26,6 +26,7 @@ RUN GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="-X 'internal/version.Versio
 
 FROM alpine:latest
 WORKDIR /app
+RUN apk upgrade --no-cache
 COPY --from=builder /build/issuer-service /app/issuer-service
 
 RUN addgroup -g 1000 -S app
