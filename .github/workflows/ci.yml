@@ -144,7 +144,7 @@ jobs:
       - build-go
     steps:
       - id: govulncheck
-        uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee #v1.0.4
+        uses: golang/govulncheck-action@31f7c5463448f83528bd771c2d978d940080c9fd #master on 20260325 contains full commit SHAs
         with:
           go-version-input: '' # default is 'stable' which overrides the file input
           go-version-file: go.mod
