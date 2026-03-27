@@ -2,11 +2,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-FROM alpine:latest
+FROM alpine:3.23.3
 
 WORKDIR /app
-
-RUN apk upgrade --no-cache
 
 RUN addgroup -g 1000 -S app
 RUN adduser -u 1000 -D -H -S -G app app
