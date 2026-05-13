@@ -31,5 +31,6 @@ func (s *FiberServer) RegisterRoutes(handler *Handler) {
 
 func notImplemented(c *fiber.Ctx) error {
 	log.Debug().Msg("Request received on not implemented endpoint")
-	return c.Status(fiber.StatusNotImplemented).SendString("This endpoint is unfortunately not available for Stargate")
+	return c.Status(fiber.StatusNotImplemented).
+		SendString("Not a valid endpoint. Please contact gateway support if you are experiencing issues.")
 }
