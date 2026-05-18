@@ -1,6 +1,6 @@
 module issuer-service-go
 
-go 1.25.8
+go 1.25.10
 
 require (
 	github.com/caarlos0/env/v11 v11.3.1
