@@ -227,7 +227,7 @@ jobs:
       #    path: code-coverage-results.md
 
   build-push-image:
-    name: Build & push image to MTR
+    name: Build & push image
     runs-on: ubuntu-latest
     if: ${{ github.event_name != 'workflow_dispatch' || (github.event_name == 'workflow_dispatch' && github.event.inputs.release_version != '') }}
     needs:
@@ -277,8 +277,8 @@ jobs:
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 #v3.7.0
         with:
           registry: ${{ vars.REGISTRY_HOST }}
-          username: ${{ vars.REGISTRY_USER }}
-          password: ${{ secrets.REGISTRY_AUTH_TOKEN }}
+          username: ${{ secrets.ARTIFACTORY_O28M_PUSH_USER }}
+          password: ${{ secrets.ARTIFACTORY_O28M_PUSH_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f #v3.12.0
@@ -318,8 +318,8 @@ jobs:
           DIGEST: ${{ steps.build-push.outputs.digest }}
           REGISTRY: ${{ vars.REGISTRY_HOST }}
           REGISTRY_REPO: ${{ vars.REGISTRY_REPO }}
-          REGISTRY_USER: ${{ vars.REGISTRY_USER }}
-          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_AUTH_TOKEN }}
+          REGISTRY_USER: ${{ secrets.ARTIFACTORY_O28M_PUSH_USER }}
+          REGISTRY_PASSWORD: ${{ secrets.ARTIFACTORY_O28M_PUSH_TOKEN }}
           COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
           COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
       - name: Verify signature
@@ -338,8 +338,8 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 #v0.35.0
         env:
-          TRIVY_USERNAME: ${{ vars.REGISTRY_USER }}
-          TRIVY_PASSWORD: ${{ secrets.REGISTRY_AUTH_TOKEN }}
+          TRIVY_USERNAME: ${{ secrets.ARTIFACTORY_O28M_PUSH_USER }}
+          TRIVY_PASSWORD: ${{ secrets.ARTIFACTORY_O28M_PUSH_TOKEN }}
         with:
           image-ref: '${{ vars.REGISTRY_HOST }}${{ vars.REGISTRY_REPO }}@${{ needs.build-push-image.outputs.image-digest }}'
           exit-code: '1'
