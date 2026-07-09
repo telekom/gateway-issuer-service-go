@@ -100,8 +100,6 @@ func (fp *FileProvider) IsSchedulerRunning() bool {
 
 func initialize(fp *FileProvider) error {
 	log.Info().Msgf("initializing JWKS cache...")
-	fp.cacheMutex.Lock()
-	defer fp.cacheMutex.Unlock()
 
 	if err := updateCerts(fp); err != nil {
 		return fmt.Errorf("failed to update certificates: %w", err)
@@ -126,18 +124,22 @@ func updateCerts(fp *FileProvider) error {
 		return err
 	}
 
-	fp.certsCacheMap = make(map[config.Type]*Jwk)
+	certsCacheMap := make(map[config.Type]*Jwk)
 
-	addJwkToCache(fp, config.Active, jwkActive)
-	addJwkToCache(fp, config.Previous, jwkPrev)
-	addJwkToCache(fp, config.Next, jwkNext)
+	addJwkToCache(certsCacheMap, config.Active, jwkActive)
+	addJwkToCache(certsCacheMap, config.Previous, jwkPrev)
+	addJwkToCache(certsCacheMap, config.Next, jwkNext)
+
+	fp.cacheMutex.Lock()
+	fp.certsCacheMap = certsCacheMap
+	fp.cacheMutex.Unlock()
 
 	return nil
 }
 
-func addJwkToCache(fp *FileProvider, certType config.Type, jwk *Jwk) {
+func addJwkToCache(certsCacheMap map[config.Type]*Jwk, certType config.Type, jwk *Jwk) {
 	var found bool
-	for _, value := range fp.certsCacheMap {
+	for _, value := range certsCacheMap {
 		if value.Kid == jwk.Kid {
 			found = true
 			break
@@ -145,7 +147,7 @@ func addJwkToCache(fp *FileProvider, certType config.Type, jwk *Jwk) {
 	}
 
 	if !found {
-		fp.certsCacheMap[certType] = jwk
+		certsCacheMap[certType] = jwk
 	} else {
 		log.Debug().Msgf("JWK with kid %s already exists in cache", jwk.Kid)
 	}
@@ -227,8 +229,6 @@ func startScheduler(fp *FileProvider) {
 
 func executeTask(fp *FileProvider) {
 	log.Debug().Msg("updating the certificates from mounted files...")
-	fp.cacheMutex.Lock()
-	defer fp.cacheMutex.Unlock()
 	err := updateCerts(fp)
 	if err != nil {
 		log.Error().Msgf("failed to update certificate: %v", err)
