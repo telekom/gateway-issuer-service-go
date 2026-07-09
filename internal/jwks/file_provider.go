@@ -80,9 +80,15 @@ func (fp *FileProvider) GetDefaultRealm(realm string) *DefaultRealm {
 	fp.cacheMutex.Lock()
 	defer fp.cacheMutex.Unlock()
 
+	activeJwk, exists := fp.certsCacheMap[config.Active]
+	if !exists {
+		log.Warn().Msg("no active JWK available in cache for default realm")
+		return nil
+	}
+
 	defaultRealm := &DefaultRealm{
 		Realm:     realm,
-		PublicKey: fp.certsCacheMap[config.Active].PublicKey,
+		PublicKey: activeJwk.PublicKey,
 	}
 
 	return defaultRealm
@@ -221,6 +227,8 @@ func startScheduler(fp *FileProvider) {
 
 func executeTask(fp *FileProvider) {
 	log.Debug().Msg("updating the certificates from mounted files...")
+	fp.cacheMutex.Lock()
+	defer fp.cacheMutex.Unlock()
 	err := updateCerts(fp)
 	if err != nil {
 		log.Error().Msgf("failed to update certificate: %v", err)

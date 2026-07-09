@@ -96,6 +96,13 @@ func (h *Handler) IssuerHandler(c *fiber.Ctx) error {
 	log.Debug().Msgf("Request received on issuer endpoint for realm %s", realm)
 
 	defaultRealm := h.jwksProvider.GetDefaultRealm(realm)
+	if defaultRealm == nil {
+		log.Error().Msgf("no active key available for realm %s", realm)
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Error{
+			Code:    fiber.StatusServiceUnavailable,
+			Message: "no active signing key available",
+		})
+	}
 
 	return c.Status(fiber.StatusOK).JSON(defaultRealm)
 }

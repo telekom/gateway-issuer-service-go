@@ -55,7 +55,7 @@ vet: ## Run go vet against code.
 
 .PHONY: test-unit
 test-unit: ## Run tests.
-	go test ./... -cover -coverprofile=cover.profile
+	go test ./... -race -cover -coverprofile=cover.profile
 
 
 .PHONY: lint
