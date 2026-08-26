@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2026 Deutsche Telekom AG
+#
+# SPDX-License-Identifier: CC0-1.0
+
+# Conventional Commits policy for Semantic Release (release.config.js).
+style = "conventional"
+
+allowed_types = [
+  "feat",
+  "fix",
+  "build",
+  "chore",
+  "ci",
+  "docs",
+  "perf",
+  "refactor",
+  "revert",
+  "style",
+  "test",
+]
+
+# Semantic Release does not restrict optional scopes or commit prose.
+subject_length = 0
+line_length = 0
+hard_line_length = 0
+subject_capitalized = false
+subject_not_punctuated = false
+imperative_subject = false

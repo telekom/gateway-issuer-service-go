@@ -1,0 +1,40 @@
+# SPDX-FileCopyrightText: 2026 Deutsche Telekom AG
+#
+# SPDX-License-Identifier: CC0-1.0
+
+# Install these optional local hooks once per clone with: make hooks
+# CI remains the authoritative validation gate.
+
+# After hooks are installed, fail visibly when the Lefthook binary is missing.
+# This setting does not install hooks or require contributors to opt in.
+assert_lefthook_installed: true
+min_version: 2.0.4
+glob_matcher: doublestar
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: gofmt
+      glob: "**/*.go"
+      run: make fmt-check
+      fail_text: "Go formatting check failed (requires gofmt; run make fmt or see CONTRIBUTING.md)."
+
+    - name: reuse
+      run: make reuse
+      fail_text: "REUSE/SPDX validation failed (requires REUSE 6+; see CONTRIBUTING.md)."
+
+    - name: gitleaks
+      run: gitleaks git --staged --redact --no-banner --exit-code=1
+      fail_text: "Gitleaks found a possible staged secret or failed to run (requires Gitleaks 8.20.0+; see CONTRIBUTING.md)."
+
+commit-msg:
+  jobs:
+    - name: committed
+      skip:
+        - merge
+        - rebase
+      run: committed --config committed.toml --commit-file "{1}"
+      fail_text: |
+        Commit message must follow Conventional Commits.
+        Allowed types: feat, fix, build, chore, ci, docs, perf, refactor, revert, style, test
+        See CONTRIBUTING.md and committed.toml.

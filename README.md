@@ -24,6 +24,11 @@ of conduct.
 
 By participating in this project, you agree to abide by its [Code of Conduct](./CODE_OF_CONDUCT.md) at all times.
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and optional
+local Git hooks.
+
 ## Licensing
 
 This project follows the [REUSE standard for software licensing](https://reuse.software/).
