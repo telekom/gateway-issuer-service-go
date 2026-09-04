@@ -1,0 +1,172 @@
+# SPDX-FileCopyrightText: 2026 Deutsche Telekom AG
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: Qualify image
+description: Build, expire, scan, sign, and verify a multi-platform staging image.
+
+inputs:
+  registry:
+    description: Container registry host.
+    required: true
+  repository:
+    description: Repository path below the registry host.
+    required: true
+  username:
+    description: Registry username.
+    required: true
+  password:
+    description: Registry token used for OCI and Artifactory API operations.
+    required: true
+  cosign-private-key:
+    description: Private key used to sign the image manifests.
+    required: true
+  cosign-password:
+    description: Password for the Cosign private key.
+    required: true
+  cosign-public-key:
+    description: Public key used to verify the signatures.
+    required: true
+  go-version:
+    description: Go builder image version.
+    required: true
+  image-version:
+    description: Version embedded in the binary and OCI metadata.
+    required: true
+  source-sha:
+    description: Source revision recorded in OCI metadata.
+    required: true
+  staging-tag:
+    description: Unique temporary image tag.
+    required: true
+
+outputs:
+  digest:
+    description: Qualified multi-platform image digest.
+    value: ${{ steps.build.outputs.digest }}
+
+runs:
+  using: composite
+  steps:
+    - name: Check publishing credentials
+      shell: bash
+      env:
+        COSIGN_PASSWORD: ${{ inputs.cosign-password }}
+        COSIGN_PRIVATE_KEY: ${{ inputs.cosign-private-key }}
+        COSIGN_PUBLIC_KEY: ${{ inputs.cosign-public-key }}
+        REGISTRY_PASSWORD: ${{ inputs.password }}
+        REGISTRY_USER: ${{ inputs.username }}
+      run: |
+        for name in REGISTRY_USER REGISTRY_PASSWORD COSIGN_PRIVATE_KEY COSIGN_PASSWORD COSIGN_PUBLIC_KEY; do
+          if [ -z "${!name}" ]; then
+            printf 'required publishing credential %s is unavailable\n' "${name}" >&2
+            exit 1
+          fi
+        done
+    - name: Login to registry
+      uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 #v3.7.0
+      with:
+        registry: ${{ inputs.registry }}
+        username: ${{ inputs.username }}
+        password: ${{ inputs.password }}
+    - name: Install crane
+      uses: imjasonh/setup-crane@feee3b6bb0d4c68370f256a4502498c9227e5c6b #v0.7
+    - name: Setup Docker Buildx
+      uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f #v3.12.0
+    - name: Build and push staging image
+      id: build
+      uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 #v6.19.2
+      with:
+        file: Dockerfile.multi-stage
+        build-args: |
+          GO_VERSION=${{ inputs.go-version }}
+          VERSION=${{ inputs.image-version }}
+        labels: |
+          org.opencontainers.image.revision=${{ inputs.source-sha }}
+          org.opencontainers.image.version=${{ inputs.image-version }}
+        push: true
+        tags: ${{ inputs.registry }}${{ inputs.repository }}:${{ inputs.staging-tag }}
+        cache-from: type=registry,ref=${{ inputs.registry }}${{ inputs.repository }}:main
+        cache-to: type=inline
+        platforms: linux/amd64,linux/arm64
+        provenance: false
+    - name: Expire staging image
+      shell: bash
+      env:
+        ARTIFACTORY_TOKEN: ${{ inputs.password }}
+        REGISTRY_HOST: ${{ inputs.registry }}
+        REGISTRY_REPO: ${{ inputs.repository }}
+        TAG: ${{ inputs.staging-tag }}
+      run: |
+        storage_url="https://${REGISTRY_HOST%/}/artifactory/api/storage/${REGISTRY_REPO#/}/${TAG}/list.manifest.json"
+        curl --fail-with-body --silent --show-error --retry 3 --request PUT \
+          --header "Authorization: Bearer ${ARTIFACTORY_TOKEN}" \
+          "${storage_url}?properties=expiration=3months"
+        properties="$(curl --fail-with-body --silent --show-error --retry 3 \
+          --header "Authorization: Bearer ${ARTIFACTORY_TOKEN}" \
+          "${storage_url}?properties")"
+        jq -e '(.properties.expiration // []) | index("3months") != null' <<< "${properties}" >/dev/null
+    - name: Resolve platform manifests
+      id: manifests
+      shell: bash
+      env:
+        DIGEST: ${{ steps.build.outputs.digest }}
+        IMAGE_REPOSITORY: ${{ inputs.registry }}${{ inputs.repository }}
+      run: |
+        manifest="$(crane manifest "${IMAGE_REPOSITORY}@${DIGEST}")"
+        amd64_digest="$(jq -r '.manifests[] | select(.platform.os == "linux" and .platform.architecture == "amd64") | .digest' <<< "${manifest}")"
+        arm64_digest="$(jq -r '.manifests[] | select(.platform.os == "linux" and .platform.architecture == "arm64") | .digest' <<< "${manifest}")"
+        if [ -z "${amd64_digest}" ] || [ -z "${arm64_digest}" ] || [ "${amd64_digest}" = "${arm64_digest}" ]; then
+          printf 'expected distinct Linux AMD64 and ARM64 platform manifests\n' >&2
+          exit 1
+        fi
+        {
+          echo "amd64=${amd64_digest}"
+          echo "arm64=${arm64_digest}"
+        } >> "${GITHUB_OUTPUT}"
+    - name: Scan AMD64 staging image
+      uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 #v0.35.0
+      env:
+        TRIVY_USERNAME: ${{ inputs.username }}
+        TRIVY_PASSWORD: ${{ inputs.password }}
+      with:
+        image-ref: ${{ inputs.registry }}${{ inputs.repository }}@${{ steps.manifests.outputs.amd64 }}
+        exit-code: '1'
+        vuln-type: os,library
+        severity: CRITICAL,HIGH
+    - name: Scan ARM64 staging image
+      uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 #v0.35.0
+      env:
+        TRIVY_USERNAME: ${{ inputs.username }}
+        TRIVY_PASSWORD: ${{ inputs.password }}
+      with:
+        image-ref: ${{ inputs.registry }}${{ inputs.repository }}@${{ steps.manifests.outputs.arm64 }}
+        exit-code: '1'
+        vuln-type: os,library
+        severity: CRITICAL,HIGH
+    - name: Install Cosign
+      uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 #v4.1.2
+      with:
+        cosign-release: v2.5.3
+    - name: Sign and verify platform manifests and image index
+      shell: bash
+      env:
+        COSIGN_PASSWORD: ${{ inputs.cosign-password }}
+        COSIGN_PRIVATE_KEY: ${{ inputs.cosign-private-key }}
+        COSIGN_PUBLIC_KEY: ${{ inputs.cosign-public-key }}
+        DIGEST: ${{ steps.build.outputs.digest }}
+        IMAGE_REPOSITORY: ${{ inputs.registry }}${{ inputs.repository }}
+        AMD64_DIGEST: ${{ steps.manifests.outputs.amd64 }}
+        ARM64_DIGEST: ${{ steps.manifests.outputs.arm64 }}
+      run: |
+        digests=(
+          "${AMD64_DIGEST}"
+          "${ARM64_DIGEST}"
+          "${DIGEST}"
+        )
+        for digest in "${digests[@]}"; do
+          cosign sign --key env://COSIGN_PRIVATE_KEY --tlog-upload=false --yes \
+            "${IMAGE_REPOSITORY}@${digest}"
+          cosign verify --insecure-ignore-tlog=true --key env://COSIGN_PUBLIC_KEY \
+            "${IMAGE_REPOSITORY}@${digest}" >/dev/null
+        done
