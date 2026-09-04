@@ -1,0 +1,19 @@
+.github/workflows/ci.yml
+  s_01af7015b83ac0::t_65bc2c4fcc4b3a 278,281,284
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "f618f9fd94d2cf60026d3ce3b2453314c86075c9",
+  "prompts": {},
+  "sessions": {
+    "s_01af7015b83ac0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f93e7219fffeibgHfL6B1prFPI",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": null
+    }
+  }
+}
