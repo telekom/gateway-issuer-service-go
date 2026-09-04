@@ -275,15 +275,13 @@ jobs:
           echo "image-tag=${TAG}" >> "${GITHUB_OUTPUT}"
 
       - name: Determine image labels
-        # Apply Quay expiry only to branch builds that are not main; tags stay permanent.
+        # Keep main and tagged images permanently; expire all other builds.
         id: image-labels
         run: |
-          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
-            echo "labels=" >> "${GITHUB_OUTPUT}"
-          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+          if [[ "${GITHUB_REF}" == "refs/heads/main" ]] || [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             echo "labels=" >> "${GITHUB_OUTPUT}"
           else
-            echo "labels=quay.expires-after=60d" >> "${GITHUB_OUTPUT}"
+            echo "labels=expiration=3months" >> "${GITHUB_OUTPUT}"
           fi
 
       - name: Login to registry
