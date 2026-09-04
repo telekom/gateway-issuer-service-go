@@ -17,15 +17,13 @@ RUN go mod download
 COPY cmd/api/main.go cmd/api/main.go
 COPY internal/ internal/
 
-# Set build arguments for cross-compilation
-ARG GOOS
-ARG GOARCH
 ARG VERSION=dev
 
-RUN GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="-X 'internal/version.Version=${VERSION}' -X 'internal/version.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" -o issuer-service cmd/api/main.go
+RUN go build -ldflags="-X 'issuer-service-go/internal/version.Version=${VERSION}' -X 'issuer-service-go/internal/version.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%SZ')'" -o issuer-service cmd/api/main.go
 
-FROM alpine:3.24.1
+FROM alpine:3.24.1 AS runtime
 WORKDIR /app
+# Rebuilt on every CI build (no-cache-filters: runtime) so security updates are picked up.
 RUN apk upgrade --no-cache
 COPY --from=builder /build/issuer-service /app/issuer-service
 
