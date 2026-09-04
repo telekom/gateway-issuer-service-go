@@ -6,19 +6,20 @@ name: CI
 
 on:
   pull_request:
-  workflow_dispatch:
-    inputs:
-      release_version:
-        description: "The next release version"
-        type: string
   push:
     branches:
       - main
-    tags:
-      - 'v*'
+      - next
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('ci-pr-{0}', github.event.pull_request.number) || 'ci-release' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  IMAGE_REPOSITORY: ${{ vars.REGISTRY_HOST }}${{ vars.REGISTRY_REPO }}
 
 jobs:
   format-go:
@@ -53,75 +54,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
-      - name: REUSE Compliance Check
+      - name: REUSE compliance check
         uses: fsfe/reuse-action@676e2d560c9a403aa252096d99fcab3e1132b0f5 #v6.0.0
-
-  check-changes:
-    name: Check which files changed
-    runs-on: ubuntu-latest
-    # Required permissions
-    permissions:
-      pull-requests: read
-      contents: read
-    # Set job outputs to values from filter step
-    outputs:
-      deps: ${{ steps.filter.outputs.deps }}
-    steps:
-      - name: Checkout project
-        if: github.event_name == 'push' # Checkout not necessary for PRs
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
-      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d #v4.0.1
-        id: filter
-        with:
-          filters: |
-            deps:
-              - 'go.sum'
-
-
-  #  ort:
-  #    name: ORT scan
-  #    runs-on: ubuntu-latest
-  #    needs:
-  #      - check-changes
-  #    # Only run if deps have changed
-  #    #if: ${{ needs.check-changes.outputs.deps == 'true' }}
-  #    if: false # skip until it's  performant
-  #    steps:
-  #      - name: Use HTTPS for Git cloning
-  #        run: git config --global url.https://github.com/.insteadOf ssh://git@github.com/
-  #      - name: Checkout project
-  #        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
-  #      - name: Prepare ORT config
-  #        # This allows us to customize the default ORT config available at
-  #        # https://github.com/oss-review-toolkit/ort-config
-  #        # using our own config file stored in .github/ort/config.yml
-  #        # Note that this is the global config, not the repo specific one
-  #        run: |
-  #          # Move into default config dir
-  #          export ORT_CONFIG_DIR=$HOME/.ort/config
-  #          mkdir -p ${ORT_CONFIG_DIR}
-  #          cd ${ORT_CONFIG_DIR}
-  #          # Checkout default config repo
-  #          git init -q
-  #          git remote add origin https://github.com/oss-review-toolkit/ort-config.git
-  #          git fetch -q --depth 1 origin main
-  #          git checkout -q FETCH_HEAD
-  #          # Copy custom config into config dir
-  #          cp ${GITHUB_WORKSPACE}/.github/ort/config.yml ${ORT_CONFIG_DIR}
-  #      - name: Run GitHub Action for ORT
-  #        uses: oss-review-toolkit/ort-ci-github-action@1805edcf1f4f55f35ae6e4d2d9795ccfb29b6021 #v1.1.0
-  #        with:
-  #          fail-on: violations
-  #          run: >
-  #            cache-dependencies,
-  #            cache-scan-results,
-  #            labels,
-  #            analyzer,
-  #            scanner,
-  #            advisor,
-  #            evaluator,
-  #            reporter,
-  #            upload-results
 
   build-go:
     name: Build Go code
@@ -136,42 +70,25 @@ jobs:
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 #v6.3.0
         with:
           go-version-file: go.mod
-      - name: Restore Go cache
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 #v5.0.4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/.go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-      - name: Download all Go modules
-        run: |
-          go mod download
       - name: Build
         run: make build
 
   govulncheck:
-    # this also scans dependencies
     name: Check for vulnerabilities (govulncheck)
     runs-on: ubuntu-latest
-    needs:
-      - build-go
+    needs: [build-go]
     steps:
-      - id: govulncheck
+      - name: Run govulncheck
         uses: golang/govulncheck-action@31f7c5463448f83528bd771c2d978d940080c9fd #master on 20260325 contains full commit SHAs
         with:
-          go-version-input: '' # default is 'stable' which overrides the file input
+          go-version-input: ''
           go-version-file: go.mod
           go-package: ./...
 
   test-go-unit:
     name: Run unit tests
     runs-on: ubuntu-latest
-    needs:
-      - build-go
-    permissions:
-      pull-requests: write
-      checks: write
-      contents: read
+    needs: [build-go]
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
@@ -179,182 +96,444 @@ jobs:
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 #v6.3.0
         with:
           go-version-file: go.mod
-      - name: Restore Go cache
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 #v5.0.4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/.go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
       - name: Run tests
         run: make test-unit
-      - name: Generate HTML coverage report
-        run: go tool cover -html=cover.profile -o coverage.html
-      - name: Generate Cobertura coverage report
-        run: |
-          go install github.com/boumenot/gocover-cobertura@latest
-          gocover-cobertura < cover.profile > cobertura.xml
-      - id: upload-results
-        name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f #v7.0.0
-        with:
-          name: test-report
-          path: |
-            ./cover.profile
-            ./coverage.html
-            ./cobertura.xml
-            ./junit.xml
-      # Skipping these for now as they fail when being run from forks
-      # Because of missing permissions.
-      #
-      #- name: Publish test report
-      #  uses: mikepenz/action-junit-report@49b2ca06f62aa7ef83ae6769a2179271e160d8e4 #v6.3.1
-      #  if: always() && github.event_name == 'pull_request'
-      #  with:
-      #    report_paths: './junit.xml'
-      #    check_name: Test Report
-      #    comment: true
-      #    include_passed: true
-      #- name: Prepare coverage comment
-      #  uses: irongut/CodeCoverageSummary@51cc3a756ddcd398d447c044c02cb6aa83fdae95 #v1.3.0
-      #  if: always() && github.event_name == 'pull_request'
-      #  with:
-      #    filename: ./cobertura.xml
-      #    badge: true
-      #    fail_below_min: true
-      #    format: markdown
-      #    indicators: true
-      #    output: both
-      #    thresholds: '60 80'
-      #- name: Append coverage comment
-      #  if: always() && github.event_name == 'pull_request'
-      #  run: |
-      #    sudo chown $(whoami) code-coverage-results.md
-      #    printf "\nDownload the latest HTML coverage report [here](${{ steps.upload-results.outputs.artifact-url }})." >> code-coverage-results.md
-      #- name: Add Coverage PR Comment
-      #  uses: marocchino/sticky-pull-request-comment@70d2764d1a7d5d9560b100cbea0077fc8f633987 #v3.0.2
-      #  if: always() && github.event_name == 'pull_request'
-      #  with:
-      #    recreate: true
-      #    path: code-coverage-results.md
 
-  build-push-image:
-    name: Build & push image
+  publish-preview-image:
+    name: Build and publish preview image
     runs-on: ubuntu-latest
-    if: ${{ github.event_name != 'workflow_dispatch' || (github.event_name == 'workflow_dispatch' && github.event.inputs.release_version != '') }}
-    needs:
-      - build-go
-      - test-go-unit
-    outputs:
-      image-digest: ${{ steps.build-push.outputs.digest }}
-      image-tag: ${{ steps.build-push.outputs.image-digest }}
+    needs: [format-go, lint-go, lint-reuse, build-go, govulncheck, test-go-unit]
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    # Dependabot PRs require matching Dependabot secrets. Fork PRs never reach this job.
     steps:
-      - name: Inject slug vars
-        uses: rlespinasse/github-slug-action@9e7def61550737ba68c62d34a32dd31792e3f429 #v5.5.0
-
-      - name: Determine tag
-        id: tag
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
+      - name: Inject slug variables
+        uses: rlespinasse/github-slug-action@ef93b2ea4b6405d06fd8684fc3ff795d262ecae8 #v5.7.0
+      - name: Determine image metadata
+        id: metadata
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          SOURCE_SHA: ${{ github.sha }}
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "This workflow was triggered by workflow_dispatch."
-            export TAG=${{ github.event.inputs.release_version }}
-          else
-            if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-              echo "This workflow was triggered by a tag push ${GITHUB_REF}"
-              export TAG=$(echo ${GITHUB_REF} | sed 's|^refs/tags/v||')
-            else
-              if [[ "${GITHUB_REF_POINT_SLUG}" == "main" ]]; then
-                export TAG="latest"
-              else
-                export TAG=${GITHUB_REF_POINT_SLUG}
-              fi
-            fi
-          fi
-          echo "Image tag will be: ${TAG}"
-          echo "image-tag=${TAG}" >> "${GITHUB_OUTPUT}"
-
-      - name: Determine image labels
-        # Apply Quay expiry only to branch builds that are not main; tags stay permanent.
-        id: image-labels
+          preview_tag="pr-${PR_NUMBER}-${GITHUB_HEAD_REF_SLUG}"
+          {
+            echo "preview-tag=${preview_tag}"
+            echo "staging-tag=staging-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+            echo "image-version=${preview_tag}-${SOURCE_SHA:0:7}"
+          } >> "${GITHUB_OUTPUT}"
+      - name: Qualify staging image
+        id: image
+        uses: ./.github/actions/qualify-image
+        with:
+          registry: ${{ vars.REGISTRY_HOST }}
+          repository: ${{ vars.REGISTRY_REPO }}
+          username: ${{ secrets.ARTIFACTORY_O28M_PUSH_USER }}
+          password: ${{ secrets.ARTIFACTORY_O28M_PUSH_TOKEN }}
+          cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          cosign-password: ${{ secrets.COSIGN_PASSWORD }}
+          cosign-public-key: ${{ secrets.COSIGN_PUBLIC_KEY }}
+          go-version: ${{ needs.build-go.outputs.go-version }}
+          image-version: ${{ steps.metadata.outputs.image-version }}
+          source-sha: ${{ github.sha }}
+          staging-tag: ${{ steps.metadata.outputs.staging-tag }}
+      - name: Promote preview image
+        env:
+          DIGEST: ${{ steps.image.outputs.digest }}
+          PREVIEW_TAG: ${{ steps.metadata.outputs.preview-tag }}
+        run: crane tag "${IMAGE_REPOSITORY}@${DIGEST}" "${PREVIEW_TAG}"
+      - name: Expire and verify preview tag
+        env:
+          ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_O28M_PUSH_TOKEN }}
+          DIGEST: ${{ steps.image.outputs.digest }}
+          PREVIEW_TAG: ${{ steps.metadata.outputs.preview-tag }}
+          REGISTRY_HOST: ${{ vars.REGISTRY_HOST }}
+          REGISTRY_REPO: ${{ vars.REGISTRY_REPO }}
         run: |
-          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
-            echo "labels=" >> "${GITHUB_OUTPUT}"
-          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            echo "labels=" >> "${GITHUB_OUTPUT}"
-          else
-            echo "labels=quay.expires-after=60d" >> "${GITHUB_OUTPUT}"
+          storage_url="https://${REGISTRY_HOST%/}/artifactory/api/storage/${REGISTRY_REPO#/}/${PREVIEW_TAG}/manifest.json"
+          curl --fail-with-body --silent --show-error --retry 3 --request PUT \
+            --header "Authorization: Bearer ${ARTIFACTORY_TOKEN}" \
+            "${storage_url}?properties=expiration=3months"
+          properties="$(curl --fail-with-body --silent --show-error --retry 3 \
+            --header "Authorization: Bearer ${ARTIFACTORY_TOKEN}" \
+            "${storage_url}?properties")"
+          jq -e '(.properties.expiration // []) | index("3months") != null' <<< "${properties}" >/dev/null
+          test "$(crane digest "${IMAGE_REPOSITORY}:${PREVIEW_TAG}")" = "${DIGEST}"
+
+  compute-version:
+    name: Compute release version
+    runs-on: ubuntu-latest
+    needs: [format-go, lint-go, lint-reuse, build-go, govulncheck, test-go-unit]
+    if: github.event_name == 'push'
+    permissions:
+      contents: write
+    outputs:
+      release-state: ${{ steps.release-state.outputs.state }}
+      release-version: ${{ steps.release-state.outputs.version }}
+    steps:
+      - name: Checkout validated commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          fetch-tags: 'true'
+      - name: Restore branch reference
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: git checkout -B "${BRANCH}"
+      - name: Compute version
+        id: compute
+        uses: cycjimmy/semantic-release-action@b12c8f6015dc215fe37bc154d4ad456dd3833c90 #v6.0.0
+        with:
+          semantic_version: 25.0.2
+          dry_run: true
+          extra_plugins: |
+            semantic-release-export-data@1.1.1
+            conventional-changelog-conventionalcommits@9.3.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Determine release state
+        id: release-state
+        env:
+          BRANCH: ${{ github.ref_name }}
+          COMPUTED_RELEASE: ${{ steps.compute.outputs.new-release-published }}
+          COMPUTED_VERSION: ${{ steps.compute.outputs.new-release-version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${COMPUTED_RELEASE}" = "true" ]; then
+            {
+              echo 'state=new'
+              echo "version=${COMPUTED_VERSION}"
+            } >> "${GITHUB_OUTPUT}"
+            exit 0
           fi
 
+          mapfile -t versions < <(git tag --points-at "${GITHUB_SHA}" --list '[0-9]*')
+          if [ "${BRANCH}" = "main" ]; then
+            mapfile -t versions < <(printf '%s\n' "${versions[@]}" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' || true)
+          else
+            mapfile -t versions < <(printf '%s\n' "${versions[@]}" | grep -E -- '-rc\.[0-9]+$' || true)
+          fi
+          if [ "${#versions[@]}" -eq 0 ]; then
+            echo 'state=none' >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          if [ "${#versions[@]}" -ne 1 ]; then
+            printf 'expected at most one release tag on %s, found %s\n' "${GITHUB_SHA}" "${#versions[@]}" >&2
+            exit 1
+          fi
+
+          version="${versions[0]}"
+          if gh release view "${version}" >/dev/null 2>&1; then
+            state=complete
+          else
+            state=recover
+          fi
+          {
+            echo "state=${state}"
+            echo "version=${version}"
+          } >> "${GITHUB_OUTPUT}"
+
+  publish-release-image:
+    name: Build and publish release image
+    runs-on: ubuntu-latest
+    needs: [build-go, compute-version]
+    if: >-
+      always() &&
+      needs.compute-version.result == 'success' &&
+      needs.compute-version.outputs.release-state != 'complete' &&
+      (github.ref_name == 'main' || needs.compute-version.outputs.release-state == 'new' || needs.compute-version.outputs.release-state == 'recover')
+    outputs:
+      image-digest: ${{ steps.image.outputs.digest }}
+    steps:
+      - name: Checkout validated commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
+        with:
+          ref: ${{ github.sha }}
+      - name: Determine image metadata
+        id: metadata
+        env:
+          BRANCH: ${{ github.ref_name }}
+          RELEASE_STATE: ${{ needs.compute-version.outputs.release-state }}
+          RELEASE_VERSION: ${{ needs.compute-version.outputs.release-version }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          if [ "${RELEASE_STATE}" = "new" ] || [ "${RELEASE_STATE}" = "recover" ]; then
+            image_version="${RELEASE_VERSION}"
+          else
+            image_version="${BRANCH}-${SOURCE_SHA:0:7}"
+          fi
+          {
+            echo "image-version=${image_version}"
+            echo "staging-tag=staging-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          } >> "${GITHUB_OUTPUT}"
       - name: Login to registry
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 #v3.7.0
         with:
           registry: ${{ vars.REGISTRY_HOST }}
           username: ${{ secrets.ARTIFACTORY_O28M_PUSH_USER }}
           password: ${{ secrets.ARTIFACTORY_O28M_PUSH_TOKEN }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f #v3.12.0
-
-      - name: Build and push
-        id: build-push
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 #v6.19.2
-        with:
-          file: Dockerfile.multi-stage
-          build-args: GO_VERSION=${{ needs.build-go.outputs.go-version }}
-          push: true
-          tags: ${{ vars.REGISTRY_HOST }}${{ vars.REGISTRY_REPO }}:${{ steps.tag.outputs.image-tag }}
-          cache-from: type=registry,ref=${{ vars.REGISTRY_HOST }}${{ vars.REGISTRY_REPO }}:${{ steps.tag.outputs.image-tag }}
-          cache-to: type=inline
-          platforms: linux/amd64,linux/arm64
-          provenance: false
-          labels: ${{ steps.image-labels.outputs.labels }}
-      
+      - name: Install crane
+        uses: imjasonh/setup-crane@feee3b6bb0d4c68370f256a4502498c9227e5c6b #v0.7
+      - name: Look up existing version image
+        id: existing
+        env:
+          RELEASE_STATE: ${{ needs.compute-version.outputs.release-state }}
+          RELEASE_VERSION: ${{ needs.compute-version.outputs.release-version }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          if [ "${RELEASE_STATE}" != "new" ] && [ "${RELEASE_STATE}" != "recover" ]; then
+            echo 'exists=false' >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          error_file="$(mktemp)"
+          if ! digest="$(crane digest "${IMAGE_REPOSITORY}:${RELEASE_VERSION}" 2>"${error_file}")"; then
+            if [ "${RELEASE_STATE}" = "recover" ]; then
+              cat "${error_file}" >&2
+              printf 'cannot recover release %s: its qualified image is missing\n' "${RELEASE_VERSION}" >&2
+              exit 1
+            fi
+            if ! grep -Eqi 'manifest[_ ]unknown|name[_ ]unknown|not found|404' "${error_file}"; then
+              cat "${error_file}" >&2
+              exit 1
+            fi
+            rm "${error_file}"
+            echo 'exists=false' >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          rm "${error_file}"
+          revision="$(crane config "${IMAGE_REPOSITORY}@${digest}" | jq -r '.config.Labels["org.opencontainers.image.revision"] // ""')"
+          if [ "${revision}" != "${SOURCE_SHA}" ]; then
+            printf '%s:%s already exists for revision %s, expected %s\n' \
+              "${IMAGE_REPOSITORY}" "${RELEASE_VERSION}" "${revision:-unknown}" "${SOURCE_SHA}" >&2
+            exit 1
+          fi
+          {
+            echo 'exists=true'
+            echo "digest=${digest}"
+          } >> "${GITHUB_OUTPUT}"
       - name: Install Cosign
-        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad #v4.0.0
+        if: steps.existing.outputs.exists == 'true'
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 #v4.1.2
         with:
-          cosign-release: 'v2.5.3'
-      - name: Sign image using cosign
-        id: cosign-sign
-        run: |
-          echo "TAGS=${TAGS}"
-          echo "DIGEST=${DIGEST}"
-          images=""
-          for tag in ${TAGS}; do
-            images+="${{ env.REGISTRY}}${{ env.REGISTRY_REPO }}:${tag}@${DIGEST} "
-          done
-          echo "images=${images}" >> $GITHUB_OUTPUT
-          cosign login -u ${{ env.REGISTRY_USER }} -p ${{ env.REGISTRY_PASSWORD }} ${{ env.REGISTRY }}
-          cosign sign --key env://COSIGN_PRIVATE_KEY --tlog-upload=false ${images}
+          cosign-release: v2.5.3
+      - name: Qualify staging image
+        if: steps.existing.outputs.exists == 'false'
+        id: qualified
+        uses: ./.github/actions/qualify-image
+        with:
+          registry: ${{ vars.REGISTRY_HOST }}
+          repository: ${{ vars.REGISTRY_REPO }}
+          username: ${{ secrets.ARTIFACTORY_O28M_PUSH_USER }}
+          password: ${{ secrets.ARTIFACTORY_O28M_PUSH_TOKEN }}
+          cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          cosign-password: ${{ secrets.COSIGN_PASSWORD }}
+          cosign-public-key: ${{ secrets.COSIGN_PUBLIC_KEY }}
+          go-version: ${{ needs.build-go.outputs.go-version }}
+          image-version: ${{ steps.metadata.outputs.image-version }}
+          source-sha: ${{ github.sha }}
+          staging-tag: ${{ steps.metadata.outputs.staging-tag }}
+      - name: Determine image digest
+        id: image
         env:
-          TAGS: ${{ steps.tag.outputs.image-tag }}
-          DIGEST: ${{ steps.build-push.outputs.digest }}
-          REGISTRY: ${{ vars.REGISTRY_HOST }}
-          REGISTRY_REPO: ${{ vars.REGISTRY_REPO }}
-          REGISTRY_USER: ${{ secrets.ARTIFACTORY_O28M_PUSH_USER }}
-          REGISTRY_PASSWORD: ${{ secrets.ARTIFACTORY_O28M_PUSH_TOKEN }}
-          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
-          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
-      - name: Verify signature
-        run: |
-          cosign verify --insecure-ignore-tlog=true --key env://COSIGN_PUBLIC_KEY ${IMAGES}
+          BUILT_DIGEST: ${{ steps.qualified.outputs.digest }}
+          EXISTING_DIGEST: ${{ steps.existing.outputs.digest }}
+        run: echo "digest=${EXISTING_DIGEST:-${BUILT_DIGEST}}" >> "${GITHUB_OUTPUT}"
+      - name: Resolve existing platform manifests
+        if: steps.existing.outputs.exists == 'true'
+        id: manifests
         env:
-          IMAGES: ${{ steps.cosign-sign.outputs.images }}
-          COSIGN_PUBLIC_KEY: ${{ secrets.COSIGN_PUBLIC_KEY }}
-
-  scan-image:
-    name: Scan image
-    runs-on: ubuntu-latest
-    needs:
-      - build-push-image
-    steps:
-      - name: Run Trivy vulnerability scanner
+          DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          manifest="$(crane manifest "${IMAGE_REPOSITORY}@${DIGEST}")"
+          amd64_digest="$(jq -r '.manifests[] | select(.platform.os == "linux" and .platform.architecture == "amd64") | .digest' <<< "${manifest}")"
+          arm64_digest="$(jq -r '.manifests[] | select(.platform.os == "linux" and .platform.architecture == "arm64") | .digest' <<< "${manifest}")"
+          if [ -z "${amd64_digest}" ] || [ -z "${arm64_digest}" ] || [ "${amd64_digest}" = "${arm64_digest}" ]; then
+            printf 'expected distinct Linux AMD64 and ARM64 platform manifests\n' >&2
+            exit 1
+          fi
+          {
+            echo "amd64=${amd64_digest}"
+            echo "arm64=${arm64_digest}"
+          } >> "${GITHUB_OUTPUT}"
+      - name: Scan existing AMD64 release image
+        if: steps.existing.outputs.exists == 'true'
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 #v0.35.0
         env:
           TRIVY_USERNAME: ${{ secrets.ARTIFACTORY_O28M_PUSH_USER }}
           TRIVY_PASSWORD: ${{ secrets.ARTIFACTORY_O28M_PUSH_TOKEN }}
         with:
-          image-ref: '${{ vars.REGISTRY_HOST }}${{ vars.REGISTRY_REPO }}@${{ needs.build-push-image.outputs.image-digest }}'
+          image-ref: ${{ env.IMAGE_REPOSITORY }}@${{ steps.manifests.outputs.amd64 }}
           exit-code: '1'
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+      - name: Scan existing ARM64 release image
+        if: steps.existing.outputs.exists == 'true'
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 #v0.35.0
+        env:
+          TRIVY_USERNAME: ${{ secrets.ARTIFACTORY_O28M_PUSH_USER }}
+          TRIVY_PASSWORD: ${{ secrets.ARTIFACTORY_O28M_PUSH_TOKEN }}
+        with:
+          image-ref: ${{ env.IMAGE_REPOSITORY }}@${{ steps.manifests.outputs.arm64 }}
+          exit-code: '1'
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+      - name: Verify platform manifests and image index
+        if: steps.existing.outputs.exists == 'true'
+        env:
+          AMD64_DIGEST: ${{ steps.manifests.outputs.amd64 }}
+          ARM64_DIGEST: ${{ steps.manifests.outputs.arm64 }}
+          DIGEST: ${{ steps.image.outputs.digest }}
+          COSIGN_PUBLIC_KEY: ${{ secrets.COSIGN_PUBLIC_KEY }}
+        run: |
+          digests=(
+            "${AMD64_DIGEST}"
+            "${ARM64_DIGEST}"
+            "${DIGEST}"
+          )
+          for digest in "${digests[@]}"; do
+            cosign verify --insecure-ignore-tlog=true --key env://COSIGN_PUBLIC_KEY \
+              "${IMAGE_REPOSITORY}@${digest}" >/dev/null
+          done
+      - name: Promote qualified image
+        env:
+          BRANCH: ${{ github.ref_name }}
+          DIGEST: ${{ steps.image.outputs.digest }}
+          EXISTING: ${{ steps.existing.outputs.exists }}
+          RELEASE_STATE: ${{ needs.compute-version.outputs.release-state }}
+          RELEASE_VERSION: ${{ needs.compute-version.outputs.release-version }}
+        run: |
+          if [ "${RELEASE_STATE}" = "new" ] && [ "${EXISTING}" = "false" ]; then
+            crane tag "${IMAGE_REPOSITORY}@${DIGEST}" "${RELEASE_VERSION}"
+          fi
+          if [ "${BRANCH}" = "main" ] && [ "${RELEASE_STATE}" != "recover" ]; then
+            crane tag "${IMAGE_REPOSITORY}@${DIGEST}" main
+          fi
+      - name: Verify promoted image tags
+        env:
+          ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_O28M_PUSH_TOKEN }}
+          BRANCH: ${{ github.ref_name }}
+          DIGEST: ${{ steps.image.outputs.digest }}
+          RELEASE_STATE: ${{ needs.compute-version.outputs.release-state }}
+          REGISTRY_HOST: ${{ vars.REGISTRY_HOST }}
+          REGISTRY_REPO: ${{ vars.REGISTRY_REPO }}
+          RELEASE_VERSION: ${{ needs.compute-version.outputs.release-version }}
+        run: |
+          tags=()
+          if [ "${RELEASE_STATE}" = "new" ] || [ "${RELEASE_STATE}" = "recover" ]; then
+            tags+=("${RELEASE_VERSION}")
+          fi
+          if [ "${BRANCH}" = "main" ] && [ "${RELEASE_STATE}" != "recover" ]; then
+            tags+=(main)
+          fi
+          for tag in "${tags[@]}"; do
+            test "$(crane digest "${IMAGE_REPOSITORY}:${tag}")" = "${DIGEST}"
+            storage_url="https://${REGISTRY_HOST%/}/artifactory/api/storage/${REGISTRY_REPO#/}/${tag}/manifest.json"
+            curl --fail-with-body --silent --show-error --retry 3 \
+              --header "Authorization: Bearer ${ARTIFACTORY_TOKEN}" "${storage_url}" >/dev/null
+            response_file="$(mktemp)"
+            status="$(curl --silent --show-error --retry 3 --output "${response_file}" --write-out '%{http_code}' \
+              --header "Authorization: Bearer ${ARTIFACTORY_TOKEN}" \
+              "${storage_url}?properties")"
+            if [ "${status}" = 200 ]; then
+              jq -e '((.properties.expiration // []) | length) == 0 and ((.properties["docker.label.expiration"] // []) | length) == 0' \
+                "${response_file}" >/dev/null
+            elif [ "${status}" != 404 ]; then
+              cat "${response_file}" >&2
+              exit 1
+            fi
+            rm "${response_file}"
+          done
+
+  publish-release:
+    name: Publish release
+    runs-on: ubuntu-latest
+    needs: [compute-version, publish-release-image]
+    if: needs.compute-version.outputs.release-state == 'new' || needs.compute-version.outputs.release-state == 'recover'
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout validated commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          fetch-tags: 'true'
+      - name: Restore branch reference
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: git checkout -B "${BRANCH}"
+      - name: Tag and publish release
+        if: needs.compute-version.outputs.release-state == 'new'
+        id: publish
+        uses: cycjimmy/semantic-release-action@b12c8f6015dc215fe37bc154d4ad456dd3833c90 #v6.0.0
+        with:
+          semantic_version: 25.0.2
+          extra_plugins: |
+            semantic-release-export-data@1.1.1
+            conventional-changelog-conventionalcommits@9.3.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify published version
+        if: needs.compute-version.outputs.release-state == 'new'
+        env:
+          ACTUAL_VERSION: ${{ steps.publish.outputs.new-release-version }}
+          EXPECTED_VERSION: ${{ needs.compute-version.outputs.release-version }}
+          RELEASED: ${{ steps.publish.outputs.new-release-published }}
+        run: test "${RELEASED}" = true && test "${ACTUAL_VERSION}" = "${EXPECTED_VERSION}"
+      - name: Recover missing GitHub release
+        if: needs.compute-version.outputs.release-state == 'recover'
+        env:
+          BRANCH: ${{ github.ref_name }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.compute-version.outputs.release-version }}
+        run: |
+          args=(--verify-tag --generate-notes --title "${VERSION}")
+          if [ "${BRANCH}" = "next" ]; then
+            args+=(--prerelease)
+          fi
+          gh release create "${VERSION}" "${args[@]}"
+      - name: Login to registry
+        if: needs.compute-version.outputs.release-state == 'new'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 #v3.7.0
+        with:
+          registry: ${{ vars.REGISTRY_HOST }}
+          username: ${{ secrets.ARTIFACTORY_O28M_PUSH_USER }}
+          password: ${{ secrets.ARTIFACTORY_O28M_PUSH_TOKEN }}
+      - name: Install crane
+        if: needs.compute-version.outputs.release-state == 'new'
+        uses: imjasonh/setup-crane@feee3b6bb0d4c68370f256a4502498c9227e5c6b #v0.7
+      - name: Update and verify release alias
+        if: needs.compute-version.outputs.release-state == 'new'
+        env:
+          ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_O28M_PUSH_TOKEN }}
+          BRANCH: ${{ github.ref_name }}
+          DIGEST: ${{ needs.publish-release-image.outputs.image-digest }}
+          REGISTRY_HOST: ${{ vars.REGISTRY_HOST }}
+          REGISTRY_REPO: ${{ vars.REGISTRY_REPO }}
+        run: |
+          if [ "${BRANCH}" = "next" ]; then
+            alias=next
+          else
+            alias=latest
+          fi
+          crane tag "${IMAGE_REPOSITORY}@${DIGEST}" "${alias}"
+          test "$(crane digest "${IMAGE_REPOSITORY}:${alias}")" = "${DIGEST}"
+          storage_url="https://${REGISTRY_HOST%/}/artifactory/api/storage/${REGISTRY_REPO#/}/${alias}/manifest.json"
+          curl --fail-with-body --silent --show-error --retry 3 \
+            --header "Authorization: Bearer ${ARTIFACTORY_TOKEN}" "${storage_url}" >/dev/null
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error --retry 3 --output "${response_file}" --write-out '%{http_code}' \
+            --header "Authorization: Bearer ${ARTIFACTORY_TOKEN}" "${storage_url}?properties")"
+          if [ "${status}" = 200 ]; then
+            jq -e '((.properties.expiration // []) | length) == 0 and ((.properties["docker.label.expiration"] // []) | length) == 0' \
+              "${response_file}" >/dev/null
+          elif [ "${status}" != 404 ]; then
+            cat "${response_file}" >&2
+            exit 1
+          fi
+          rm "${response_file}"
