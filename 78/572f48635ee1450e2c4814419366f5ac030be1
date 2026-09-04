@@ -1,0 +1,21 @@
+.github/actions/qualify-image/action.yml
+  s_41222e7f8a2125::t_ae5c785e5d64c2 101
+.github/workflows/ci.yml
+  s_41222e7f8a2125::t_ae5c785e5d64c2 155,433,526
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "78572f48635ee1450e2c4814419366f5ac030be1",
+  "prompts": {},
+  "sessions": {
+    "s_41222e7f8a2125": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f99597a48ffeDMPzWw1mnBnpW4",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Niklas Beilmann <niklas.beilmann@telekom.de>"
+    }
+  }
+}
