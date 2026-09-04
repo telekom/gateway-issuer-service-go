@@ -98,7 +98,7 @@ runs:
         REGISTRY_REPO: ${{ inputs.repository }}
         TAG: ${{ inputs.staging-tag }}
       run: |
-        storage_url="https://${REGISTRY_HOST%/}/artifactory/api/storage/${REGISTRY_REPO#/}/${TAG}/manifest.json"
+        storage_url="https://${REGISTRY_HOST%/}/artifactory/api/storage/${REGISTRY_REPO#/}/${TAG}/list.manifest.json"
         curl --fail-with-body --silent --show-error --retry 3 --request PUT \
           --header "Authorization: Bearer ${ARTIFACTORY_TOKEN}" \
           "${storage_url}?properties=expiration=3months"

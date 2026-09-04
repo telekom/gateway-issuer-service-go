@@ -152,7 +152,7 @@ jobs:
           REGISTRY_HOST: ${{ vars.REGISTRY_HOST }}
           REGISTRY_REPO: ${{ vars.REGISTRY_REPO }}
         run: |
-          storage_url="https://${REGISTRY_HOST%/}/artifactory/api/storage/${REGISTRY_REPO#/}/${PREVIEW_TAG}/manifest.json"
+          storage_url="https://${REGISTRY_HOST%/}/artifactory/api/storage/${REGISTRY_REPO#/}/${PREVIEW_TAG}/list.manifest.json"
           curl --fail-with-body --silent --show-error --retry 3 --request PUT \
             --header "Authorization: Bearer ${ARTIFACTORY_TOKEN}" \
             "${storage_url}?properties=expiration=3months"
@@ -430,7 +430,7 @@ jobs:
           fi
           for tag in "${tags[@]}"; do
             test "$(crane digest "${IMAGE_REPOSITORY}:${tag}")" = "${DIGEST}"
-            storage_url="https://${REGISTRY_HOST%/}/artifactory/api/storage/${REGISTRY_REPO#/}/${tag}/manifest.json"
+            storage_url="https://${REGISTRY_HOST%/}/artifactory/api/storage/${REGISTRY_REPO#/}/${tag}/list.manifest.json"
             curl --fail-with-body --silent --show-error --retry 3 \
               --header "Authorization: Bearer ${ARTIFACTORY_TOKEN}" "${storage_url}" >/dev/null
             response_file="$(mktemp)"
@@ -523,7 +523,7 @@ jobs:
           fi
           crane tag "${IMAGE_REPOSITORY}@${DIGEST}" "${alias}"
           test "$(crane digest "${IMAGE_REPOSITORY}:${alias}")" = "${DIGEST}"
-          storage_url="https://${REGISTRY_HOST%/}/artifactory/api/storage/${REGISTRY_REPO#/}/${alias}/manifest.json"
+          storage_url="https://${REGISTRY_HOST%/}/artifactory/api/storage/${REGISTRY_REPO#/}/${alias}/list.manifest.json"
           curl --fail-with-body --silent --show-error --retry 3 \
             --header "Authorization: Bearer ${ARTIFACTORY_TOKEN}" "${storage_url}" >/dev/null
           response_file="$(mktemp)"
