@@ -1,0 +1,20 @@
+.github/workflows/ci.yml
+  s_01af7015b83ac0::t_67c005a9ef5e7f 281,284
+  s_01af7015b83ac0::t_6f407204b78e2e 278,282
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "f2631f29eb564b4f83c988aa032137807e1267bc",
+  "prompts": {},
+  "sessions": {
+    "s_01af7015b83ac0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f93e7219fffeibgHfL6B1prFPI",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "luis.pflamminger@telekom.de <luis.pflamminger@telekom.de>"
+    }
+  }
+}
