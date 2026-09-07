@@ -18,6 +18,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMain(m *testing.M) {
@@ -77,7 +78,8 @@ func TestHealthRoute(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, tt.route, nil)
-			resp, _ := srv.Test(req, 1)
+			resp, err := srv.Test(req)
+			require.NoError(t, err)
 			assert.Equalf(t, tt.expectedCode, resp.StatusCode, tt.description)
 		})
 	}
@@ -128,7 +130,8 @@ func TestAuthRoute(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, tt.route, nil)
-			resp, _ := srv.Test(req, 1)
+			resp, err := srv.Test(req)
+			require.NoError(t, err)
 			assert.Equalf(t, tt.expectedCode, resp.StatusCode, tt.description)
 		})
 	}
@@ -250,11 +253,12 @@ func TestDiscoveryRoute(t *testing.T) {
 
 			req := httptest.NewRequest(http.MethodGet, tt.route, nil)
 			req.Header.Set("X-Forwarded-Host", tt.headers["X-Forwarded-Host"])
-			resp, _ := srv.Test(req, 1)
+			resp, err := srv.Test(req)
+			require.NoError(t, err)
 			assert.Equalf(t, tt.expectedCode, resp.StatusCode, tt.description)
 
 			var actualResponse server.Discovery
-			err := json.NewDecoder(resp.Body).Decode(&actualResponse)
+			err = json.NewDecoder(resp.Body).Decode(&actualResponse)
 			if err != nil {
 				t.Fatalf("Failed to decode response body: %v", err)
 			}
@@ -350,7 +354,8 @@ func TestJwksRoute(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, tt.route, nil)
-			resp, _ := srv.Test(req, 5)
+			resp, err := srv.Test(req)
+			require.NoError(t, err)
 			assert.Equalf(t, tt.expectedCode, resp.StatusCode, tt.description)
 
 			bodyBytes, err := io.ReadAll(resp.Body)
@@ -414,7 +419,8 @@ func TestDefaultRealmRoute(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, tt.route, nil)
-			resp, _ := srv.Test(req, 5)
+			resp, err := srv.Test(req)
+			require.NoError(t, err)
 			assert.Equalf(t, tt.expectedCode, resp.StatusCode, tt.description)
 
 			bodyBytes, err := io.ReadAll(resp.Body)
