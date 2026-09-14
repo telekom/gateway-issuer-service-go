@@ -1,0 +1,21 @@
+.github/workflows/ci.yml
+  s_2eaa62ae218664::t_6d1c20d53bd3a3 265-268
+  s_2eaa62ae218664::t_f54496137027ae 312-319
+  s_2eaa62ae218664::t_0f45cfa876cab1 197,202-207
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "aff50d69e640b9398efdd75d78f572af5a268381",
+  "prompts": {},
+  "sessions": {
+    "s_2eaa62ae218664": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f600864c6ffe4Av46qyp4odNaE",
+        "model": "claude-fable-5.1"
+      },
+      "human_author": "Niklas Beilmann <niklas.beilmann@telekom.de>"
+    }
+  }
+}
