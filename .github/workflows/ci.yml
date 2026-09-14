@@ -194,23 +194,17 @@ jobs:
           password: ${{ secrets.ARTIFACTORY_O28M_PUSH_TOKEN }}
       - name: Install crane
         uses: imjasonh/setup-crane@feee3b6bb0d4c68370f256a4502498c9227e5c6b #v0.7
-      - name: Refuse to overwrite a foreign version image
+      - name: Refuse to overwrite a version image
         if: github.event_name == 'push'
         env:
           RELEASE_VERSION: ${{ steps.metadata.outputs.tag }}
-          SOURCE_SHA: ${{ github.sha }}
         run: |
-          # SemVer image tags are immutable. A version tag may only pre-exist from an
-          # interrupted release of this same commit, which this run then completes.
-          tags="$(crane ls "${IMAGE_REPOSITORY}")"
-          if ! grep -qx "${RELEASE_VERSION}" <<< "${tags}"; then
-            exit 0
-          fi
-          digest="$(crane digest "${IMAGE_REPOSITORY}:${RELEASE_VERSION}")"
-          revision="$(crane config "${IMAGE_REPOSITORY}@${digest}" | jq -r '.config.Labels["org.opencontainers.image.revision"] // ""')"
-          if [ "${revision}" != "${SOURCE_SHA}" ]; then
-            printf '%s:%s already exists for revision %s, expected %s\n' \
-              "${IMAGE_REPOSITORY}" "${RELEASE_VERSION}" "${revision:-unknown}" "${SOURCE_SHA}" >&2
+          # SemVer image tags are immutable. Rebuilds are not reproducible, so a release
+          # interrupted after this tag was published is completed by re-running only its
+          # failed jobs, never by rebuilding the image.
+          if crane ls "${IMAGE_REPOSITORY}" | grep -qx "${RELEASE_VERSION}"; then
+            printf '%s:%s already exists; re-run the failed jobs of the original run instead\n' \
+              "${IMAGE_REPOSITORY}" "${RELEASE_VERSION}" >&2
             exit 1
           fi
       - name: Setup Docker Buildx
@@ -268,7 +262,10 @@ jobs:
           IMAGE: ${{ env.IMAGE_REPOSITORY }}@${{ steps.build.outputs.digest }}
         run: |
           cosign sign --key env://COSIGN_PRIVATE_KEY --recursive --tlog-upload=false --yes "${IMAGE}"
-          cosign verify --insecure-ignore-tlog=true --key env://COSIGN_PUBLIC_KEY "${IMAGE}" >/dev/null
+          # `cosign verify` has no --recursive, so check the platform manifests explicitly.
+          for ref in "${IMAGE}" $(crane manifest "${IMAGE}" | jq -r --arg repo "${IMAGE_REPOSITORY}" '.manifests[] | "\($repo)@\(.digest)"'); do
+            cosign verify --insecure-ignore-tlog=true --key env://COSIGN_PUBLIC_KEY "${ref}" >/dev/null
+          done
       - name: Publish and verify tag
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
@@ -312,7 +309,14 @@ jobs:
           ACTUAL_VERSION: ${{ steps.publish.outputs.new-release-version }}
           EXPECTED_VERSION: ${{ needs.compute-version.outputs.new-release-version }}
           RELEASED: ${{ steps.publish.outputs.new-release-published }}
-        run: test "${RELEASED}" = true && test "${ACTUAL_VERSION}" = "${EXPECTED_VERSION}"
+        run: |
+          # Re-running this job after an interrupted release finds the tag already on
+          # this commit; the alias update below then completes the release.
+          if [ "${RELEASED}" = true ]; then
+            test "${ACTUAL_VERSION}" = "${EXPECTED_VERSION}"
+          else
+            test "$(git rev-parse -q --verify "refs/tags/${EXPECTED_VERSION}^{commit}")" = "${GITHUB_SHA}"
+          fi
       - name: Login to registry
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 #v3.7.0
         with:
