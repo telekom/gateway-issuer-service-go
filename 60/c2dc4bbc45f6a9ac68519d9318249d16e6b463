@@ -1,0 +1,29 @@
+.github/workflows/ci.yml
+  s_41222e7f8a2125::t_122c8dfbbf676a 142
+  s_41222e7f8a2125::t_dbbb2540b4a11f 222
+  s_41222e7f8a2125::t_9db3bad0c9e1fc 208
+  s_41222e7f8a2125::t_689268f7aa0f31 12,17,21-25,59,81,83,86,93,103,104-105,107,110-111,113,118-124,127-130,132-141,145,150,158,160,162-164,167-169,172-173,179,183-184,188,195-196,199,201-202,207,210-215,249-252,254,256-258,264,280-281,284-287,289-295,297-299,301-302,304-310,311-312,314-315,316,317-322,323-324,326,327,329-336
+  s_41222e7f8a2125::t_20efffca96d94e 238-241,245-247
+  s_41222e7f8a2125::t_a022a814122605 267
+release.config.js
+  s_41222e7f8a2125::t_10f981f593998b 15
+  s_41222e7f8a2125::t_015cb55f3bf3de 5-14,17-19,21-22
+Dockerfile.multi-stage
+  s_41222e7f8a2125::t_ba011d5b5cf2c0 22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "60c2dc4bbc45f6a9ac68519d9318249d16e6b463",
+  "prompts": {},
+  "sessions": {
+    "s_41222e7f8a2125": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f99597a48ffeDMPzWw1mnBnpW4",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Niklas Beilmann <niklas.beilmann@telekom.de>"
+    }
+  }
+}
